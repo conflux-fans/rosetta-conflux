@@ -25,7 +25,7 @@ const (
 	// NodeVersion is the version of conflux full node we are using.
 	// NodeVersion = "1.1.6"
 
-	// Blockchain is Ethereum.
+	// Blockchain is conflux.
 	Blockchain string = "Conflux"
 
 	// MainnetNetwork is the value of the network
@@ -90,11 +90,11 @@ const (
 	DestructOpType = "DESTRUCT"
 
 	// SuccessStatus is the status of any
-	// Ethereum operation considered successful.
+	// conflux operation considered successful.
 	SuccessStatus = "SUCCESS"
 
 	// FailureStatus is the status of any
-	// Ethereum operation considered unsuccessful.
+	// conflux operation considered unsuccessful.
 	FailureStatus = "FAILURE"
 
 	// HistoricalBalanceSupported is whether
@@ -163,7 +163,7 @@ var (
 	// }
 
 	// Currency is the *types.Currency for all
-	// Ethereum networks.
+	// conflux networks.
 	Currency = &types.Currency{
 		Symbol:   Symbol,
 		Decimals: Decimals,
@@ -209,11 +209,6 @@ type JSONRPC interface {
 	BatchCallContext(ctx context.Context, b []rpc.BatchElem) error
 	Close()
 }
-
-// // GraphQL is the interface for accessing go-ethereum's GraphQL endpoint.
-// type GraphQL interface {
-// 	Query(ctx context.Context, input string) (string, error)
-// }
 
 // CallType returns a boolean indicating
 // if the provided trace type is a call type.

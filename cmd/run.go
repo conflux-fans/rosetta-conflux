@@ -50,7 +50,7 @@ const (
 var (
 	runCmd = &cobra.Command{
 		Use:   "run",
-		Short: "Run rosetta-ethereum",
+		Short: "Run rosetta-conflux",
 		RunE:  runRunCmd,
 	}
 )
@@ -95,7 +95,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 		var err error
 		client, err = conflux.NewClient(cfg.GethURL)
 		if err != nil {
-			return fmt.Errorf("%w: cannot initialize ethereum client", err)
+			return fmt.Errorf("%w: cannot initialize conflux client", err)
 		}
 		defer client.Close()
 	}
@@ -128,7 +128,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 
 	err = g.Wait()
 	if SignalReceived {
-		return errors.New("rosetta-ethereum halted")
+		return errors.New("rosetta-conflux halted")
 	}
 
 	return err

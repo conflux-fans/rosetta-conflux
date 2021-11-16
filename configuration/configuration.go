@@ -15,17 +15,8 @@ const (
 	// to make outbound connections.
 	Offline Mode = "OFFLINE"
 
-	// Mainnet is the Ethereum Mainnet.
+	// Mainnet is the conflux Mainnet.
 	Mainnet string = "MAINNET"
-
-	// // Ropsten is the Ethereum Ropsten testnet.
-	// Ropsten string = "ROPSTEN"
-
-	// // Rinkeby is the Ethereum Rinkeby testnet.
-	// Rinkeby string = "RINKEBY"
-
-	// // Goerli is the Ethereum Görli testnet.
-	// Goerli string = "GOERLI"
 
 	// Testnet defaults to `Ropsten` for backwards compatibility.
 	Testnet string = "TESTNET"
@@ -48,7 +39,7 @@ const (
 	PortEnv = "PORT"
 
 	// GethEnv is an optional environment variable
-	// used to connect rosetta-ethereum to an already
+	// used to connect rosetta-conflux to an already
 	// running geth node.
 	GethEnv = "GETH"
 
@@ -62,7 +53,7 @@ const (
 	// by hosted node services. When not set, defaults to false.
 	SkipGethAdminEnv = "SKIP_GETH_ADMIN"
 
-	// MiddlewareVersion is the version of rosetta-ethereum.
+	// MiddlewareVersion is the version of rosetta-conflux.
 	MiddlewareVersion = "0.0.4"
 )
 

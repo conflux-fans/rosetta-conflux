@@ -2,9 +2,11 @@ package services
 
 import (
 	"context"
+	"errors"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/conflux-fans/rosetta-conflux/configuration"
+	"github.com/conflux-fans/rosetta-conflux/conflux"
 )
 
 // BlockAPIService implements the server.BlockAPIServicer interface.
@@ -29,7 +31,22 @@ func (s *BlockAPIService) Block(
 	ctx context.Context,
 	request *types.BlockRequest,
 ) (*types.BlockResponse, *types.Error) {
-	return nil, wrapErr(ErrUnimplemented, nil)
+	if s.config.Mode != configuration.Online {
+		return nil, ErrUnavailableOffline
+	}
+
+	block, err := s.client.Block(ctx, request.BlockIdentifier)
+	// TODO: Need change ErrBlockOrphaned name
+	if errors.Is(err, conflux.ErrBlockOrphaned) {
+		return nil, wrapErr(ErrBlockOrphaned, err)
+	}
+	if err != nil {
+		return nil, wrapErr(ErrGeth, err)
+	}
+
+	return &types.BlockResponse{
+		Block: block,
+	}, nil
 }
 
 // BlockTransaction implements the /block/transaction endpoint.

@@ -43,8 +43,16 @@ func (s *AccountAPIService) AccountBalance(
 	ctx context.Context,
 	request *types.AccountBalanceRequest,
 ) (*types.AccountBalanceResponse, *types.Error) {
-	// TODO: Implement
-	return nil, wrapErr(ErrUnimplemented, nil)
+	balanceResponse, err := s.client.Balance(
+		ctx,
+		request.AccountIdentifier,
+		request.BlockIdentifier,
+	)
+	if err != nil {
+		return nil, wrapErr(ErrGeth, err)
+	}
+
+	return balanceResponse, nil
 }
 
 // AccountCoins implements /account/coins.

@@ -18,7 +18,9 @@ import (
 	"context"
 
 	"github.com/conflux-fans/rosetta-conflux/configuration"
+	"github.com/conflux-fans/rosetta-conflux/conflux"
 
+	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -44,7 +46,9 @@ func (s *NetworkAPIService) NetworkList(
 	ctx context.Context,
 	request *types.MetadataRequest,
 ) (*types.NetworkListResponse, *types.Error) {
-	return nil, wrapErr(ErrUnimplemented, nil)
+	return &types.NetworkListResponse{
+		NetworkIdentifiers: []*types.NetworkIdentifier{s.config.Network},
+	}, nil
 }
 
 // NetworkOptions implements the /network/options endpoint.
@@ -52,7 +56,20 @@ func (s *NetworkAPIService) NetworkOptions(
 	ctx context.Context,
 	request *types.NetworkRequest,
 ) (*types.NetworkOptionsResponse, *types.Error) {
-	return nil, wrapErr(ErrUnimplemented, nil)
+	return &types.NetworkOptionsResponse{
+		Version: &types.Version{
+			NodeVersion:       conflux.NodeVersion,
+			RosettaVersion:    types.RosettaAPIVersion,
+			MiddlewareVersion: types.String(configuration.MiddlewareVersion),
+		},
+		Allow: &types.Allow{
+			Errors:                  Errors,
+			OperationTypes:          conflux.OperationTypes,
+			OperationStatuses:       conflux.OperationStatuses,
+			HistoricalBalanceLookup: conflux.HistoricalBalanceSupported,
+			CallMethods:             conflux.CallMethods,
+		},
+	}, nil
 }
 
 // NetworkStatus implements the /network/status endpoint.
@@ -60,5 +77,24 @@ func (s *NetworkAPIService) NetworkStatus(
 	ctx context.Context,
 	request *types.NetworkRequest,
 ) (*types.NetworkStatusResponse, *types.Error) {
-	return nil, wrapErr(ErrUnimplemented, nil)
+	if s.config.Mode != configuration.Online {
+		return nil, ErrUnavailableOffline
+	}
+
+	currentBlock, currentTime, syncStatus, peers, err := s.client.Status(ctx)
+	if err != nil {
+		return nil, wrapErr(ErrGeth, err)
+	}
+
+	if currentTime < asserter.MinUnixEpoch {
+		return nil, ErrGethNotReady
+	}
+
+	return &types.NetworkStatusResponse{
+		CurrentBlockIdentifier: currentBlock,
+		CurrentBlockTimestamp:  currentTime,
+		GenesisBlockIdentifier: s.config.GenesisBlockIdentifier,
+		SyncStatus:             syncStatus,
+		Peers:                  peers,
+	}, nil
 }

@@ -23,7 +23,7 @@ import (
 
 const (
 	// NodeVersion is the version of conflux full node we are using.
-	// NodeVersion = "1.1.6"
+	NodeVersion = "1.1.6"
 
 	// Blockchain is conflux.
 	Blockchain string = "Conflux"
@@ -31,6 +31,8 @@ const (
 	// MainnetNetwork is the value of the network
 	// in MainnetNetworkIdentifier.
 	MainnetNetwork string = "Mainnet"
+
+	TestnetNetwork string = "Testnet"
 
 	// // RopstenNetwork is the value of the network
 	// // in RopstenNetworkIdentifier.
@@ -137,6 +139,11 @@ var (
 	// MainnetGenesisBlockIdentifier is the *types.BlockIdentifier
 	// of the mainnet genesis block.
 	MainnetGenesisBlockIdentifier = &types.BlockIdentifier{
+		Hash:  "", //params.MainnetGenesisHash.Hex(),
+		Index: GenesisBlockIndex,
+	}
+
+	TestnetGenesisBlockIdentifier = &types.BlockIdentifier{
 		Hash:  "", //params.MainnetGenesisHash.Hex(),
 		Index: GenesisBlockIndex,
 	}

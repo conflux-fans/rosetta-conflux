@@ -16,8 +16,10 @@ package services
 
 import (
 	"context"
+	"errors"
 
 	"github.com/conflux-fans/rosetta-conflux/configuration"
+	"github.com/conflux-fans/rosetta-conflux/conflux"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -41,5 +43,23 @@ func (s *CallAPIService) Call(
 	ctx context.Context,
 	request *types.CallRequest,
 ) (*types.CallResponse, *types.Error) {
-	return nil, wrapErr(ErrUnimplemented, nil)
+	if s.config.Mode != configuration.Online {
+		return nil, ErrUnavailableOffline
+	}
+
+	response, err := s.client.Call(ctx, request)
+	if errors.Is(err, conflux.ErrCallParametersInvalid) {
+		return nil, wrapErr(ErrCallParametersInvalid, err)
+	}
+	if errors.Is(err, conflux.ErrCallOutputMarshal) {
+		return nil, wrapErr(ErrCallOutputMarshal, err)
+	}
+	if errors.Is(err, conflux.ErrCallMethodInvalid) {
+		return nil, wrapErr(ErrCallMethodInvalid, err)
+	}
+	if err != nil {
+		return nil, wrapErr(ErrGeth, err)
+	}
+
+	return response, nil
 }

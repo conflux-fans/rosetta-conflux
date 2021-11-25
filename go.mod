@@ -11,3 +11,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.1.1
 )
+
+replace (
+	github.com/Conflux-Chain/go-conflux-sdk v1.0.16 => ../go-conflux-sdk
+)

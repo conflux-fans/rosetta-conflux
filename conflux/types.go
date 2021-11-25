@@ -71,6 +71,12 @@ const (
 	// CreateOpType is used to represent CREATE trace operations.
 	CreateOpType = "CREATE"
 
+	// CallResultOpType = "CallResult"
+
+	// CreateResultOpType = "CreateResult"
+
+	InternalTransferActionOpType = "INTERNALTRANSFERACTION"
+
 	// Create2OpType is used to represent CREATE2 trace operations.
 	Create2OpType = "CREATE2"
 
@@ -179,16 +185,21 @@ var (
 	// OperationTypes are all suppoorted operation types.
 	OperationTypes = []string{
 		MinerRewardOpType,
-		UncleRewardOpType,
+		// UncleRewardOpType,
 		FeeOpType,
-		CallOpType,
+		// CallOpType,
 		CreateOpType,
-		Create2OpType,
-		SelfDestructOpType,
+		// CallResultOpType,
+		// CreateResultOpType,
+		InternalTransferActionOpType,
+
+		// Create2OpType,
+		// SelfDestructOpType,
+		CallOpType,
 		CallCodeOpType,
 		DelegateCallOpType,
 		StaticCallOpType,
-		DestructOpType,
+		// DestructOpType,
 	}
 
 	// OperationStatuses are all supported operation statuses.

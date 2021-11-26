@@ -55,6 +55,7 @@ func (s *AccountAPIService) AccountBalance(
 	return balanceResponse, nil
 }
 
+// TODO: implement AccountIdentifier
 // AccountCoins implements /account/coins.
 func (s *AccountAPIService) AccountCoins(
 	ctx context.Context,

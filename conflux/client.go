@@ -11,7 +11,6 @@ import (
 	"github.com/Conflux-Chain/go-conflux-sdk/cfxclient/bulk"
 	cfxSdkTypes "github.com/Conflux-Chain/go-conflux-sdk/types"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/pkg/errors"
 )
@@ -41,34 +40,12 @@ func (ec *Client) Status(_ context.Context) (*RosettaTypes.BlockIdentifier, int6
 }
 
 func (ec *Client) Block(ctx context.Context, blockIdentifier *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.Block, error) {
-	// if blockIdentifier != nil {
-	// 	if blockIdentifier.Hash != nil {
-	// 		return ec.getParsedBlock(ctx,
-	// 			// "eth_getBlockByHash",
-	// 			*blockIdentifier.Hash,
-	// 		)
-	// 	}
-
-	// 	if blockIdentifier.Index != nil {
-	// 		return ec.getParsedBlock(
-	// 			ctx,
-	// 			// "eth_getBlockByNumber",
-	// 			toBlockNumArg(big.NewInt(*blockIdentifier.Index)),
-	// 			// true,
-	// 		)
-	// 	}
-	// }
-
-	// return ec.getParsedBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(nil))
 	return ec.getParsedBlock(ctx, blockIdentifier)
 }
 
 func (ec *Client) getParsedBlock(
 	ctx context.Context,
 	_blockIdentifier *RosettaTypes.PartialBlockIdentifier,
-	// blockNumberOrTag string,
-	// blockMethod string,
-	// args ...interface{},
 ) (
 	*RosettaTypes.Block,
 	error,
@@ -209,6 +186,8 @@ func objToMap(obj interface{}) (val map[string]interface{}, err error) {
 	err = json.Unmarshal(b, &val)
 	return
 }
+
+// ============= gen operates =============
 
 func feeOps(ltx *loadedTransaction) []*RosettaTypes.Operation {
 	header, tx, receipt := ltx.BlockHeader, ltx.Transaction, ltx.Receipt
@@ -379,7 +358,6 @@ func getOpMetadata(node cfxSdkTypes.LocalizedTraceNode) map[string]interface{} {
 
 func (ec *Client) getBlock(
 	ctx context.Context,
-	// blockMethod string,
 	_blockIdentifier *RosettaTypes.PartialBlockIdentifier,
 
 ) (
@@ -387,46 +365,6 @@ func (ec *Client) getBlock(
 	[]*loadedTransaction,
 	error,
 ) {
-	// var raw json.RawMessage
-	// err := ec.c.CallContext(ctx, &raw, blockMethod, args...)
-	// if err != nil {
-	// 	return nil, nil, fmt.Errorf("%w: block fetch failed", err)
-	// } else if len(raw) == 0 {
-	// 	return nil, nil, ethereum.NotFound
-	// }
-
-	// // Decode header and transactions
-	// var head types.Header
-	// var body rpcBlock
-	// if err := json.Unmarshal(raw, &head); err != nil {
-	// 	return nil, nil, err
-	// }
-	// if err := json.Unmarshal(raw, &body); err != nil {
-	// 	return nil, nil, err
-	// }
-
-	// // Get all transaction receipts
-	// receipts, err := ec.getBlockReceipts(ctx, body.Hash, body.Transactions)
-	// if err != nil {
-	// 	return nil, nil, fmt.Errorf("%w: could not get receipts for %x", err, body.Hash[:])
-	// }
-
-	// // Get block traces (not possible to make idempotent block transaction trace requests)
-	// //
-	// // We fetch traces last because we want to avoid limiting the number of other
-	// // block-related data fetches we perform concurrently (we limit the number of
-	// // concurrent traces that are computed to 16 to avoid overwhelming geth).
-	// var traces []*rpcCall
-	// var rawTraces []*rpcRawCall
-	// var addTraces bool
-	// if head.Number.Int64() != GenesisBlockIndex { // not possible to get traces at genesis
-	// 	addTraces = true
-	// 	traces, rawTraces, err = ec.getBlockTraces(ctx, body.Hash)
-	// 	if err != nil {
-	// 		return nil, nil, fmt.Errorf("%w: could not get traces for %x", err, body.Hash[:])
-	// 	}
-	// }
-
 	// get block
 	rpcBlock, err := ec.getRpcBlock(_blockIdentifier)
 	if err != nil {
@@ -480,16 +418,10 @@ func (ec *Client) getBlock(
 	for i, tx := range rpcTxs {
 		txs[i] = &tx
 		receipt := receipts[i]
-		// gasUsedBig := receipt.GasUsed.ToInt()
-		// feeAmount := gasUsedBig.Mul(gasUsedBig, txs[i].GasPrice())
-		// feeAmount := receipt.GasFee
 
 		loadedTxs[i].BlockHeader = &rpcBlock.BlockHeader
-		// loadedTxs[i] = tx.LoadedTransaction()
 		loadedTxs[i] = &loadedTransaction{}
 		loadedTxs[i].Transaction = txs[i]
-		// loadedTxs[i].FeeAmount = receipt.GasFee.ToInt()
-		// loadedTxs[i].Miner = MustChecksum(head.Coinbase.Hex())
 		loadedTxs[i].Receipt = receipt
 
 		// Continue if calls does not exist (occurs at genesis)
@@ -500,8 +432,6 @@ func (ec *Client) getBlock(
 		loadedTxs[i].Trace = txsTraces[i]
 		// loadedTxs[i].RawTrace = rawTraces[i].Result
 	}
-
-	// return types.NewBlockWithHeader(&head).WithBody(txs, uncles), loadedTxs, nil
 	return rpcBlock, loadedTxs, nil
 }
 
@@ -521,52 +451,94 @@ func (ec *Client) getRpcBlock(_blockIdentifier *RosettaTypes.PartialBlockIdentif
 type loadedTransaction struct {
 	BlockHeader *cfxSdkTypes.BlockHeader
 	Transaction *cfxSdkTypes.Transaction
-	// From        *common.Address
-	// BlockNumber *string
-	// BlockHash   *common.Hash
-	// FeeAmount   *big.Int
-	// Miner       string
-	// Status      bool
 
-	Trace []cfxSdkTypes.LocalizedTrace
-	// RawTrace json.RawMessage
+	Trace   []cfxSdkTypes.LocalizedTrace
 	Receipt *cfxSdkTypes.TransactionReceipt
 }
 
-func (ec *Client) Balance(_ context.Context, _ *RosettaTypes.AccountIdentifier, _ *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.AccountBalanceResponse, error) {
-	panic("not implemented") // TODO: Implement
+func (ec *Client) Balance(ctx context.Context,
+	account *RosettaTypes.AccountIdentifier,
+	block *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.AccountBalanceResponse, error) {
+
+	// get rpc block
+	rpcBlock, err := ec.getRpcBlock(block)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get raw block by rpc")
+	}
+
+	// get account balance
+	addr := ec.c.MustNewAddress(account.Address)
+	epoch := cfxSdkTypes.NewEpochNumber(rpcBlock.EpochNumber)
+	balance, err := ec.c.GetBalance(addr, epoch)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get balance")
+	}
+
+	nonce, err := ec.c.GetNextNonce(addr, epoch)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get nonce")
+	}
+
+	code, err := ec.c.GetCode(addr, epoch)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get code")
+	}
+
+	return &RosettaTypes.AccountBalanceResponse{
+		Balances: []*RosettaTypes.Amount{
+			{
+				Value:    balance.String(),
+				Currency: Currency,
+			},
+		},
+		BlockIdentifier: &RosettaTypes.BlockIdentifier{
+			Hash:  rpcBlock.Hash.String(),
+			Index: rpcBlock.BlockNumber.ToInt().Int64(),
+		},
+		Metadata: map[string]interface{}{
+			"nonce": nonce.ToInt(),
+			"code":  code.String(),
+		},
+	}, nil
 }
 
-func (ec *Client) PendingNonceAt(_ context.Context, _ common.Address) (uint64, error) {
-	panic("not implemented") // TODO: Implement
+func (ec *Client) PendingNonceAt(ctx context.Context, account cfxSdkTypes.Address) (*big.Int, error) {
+	nonce, err := ec.c.TxPool().NextNonce(account)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return nonce.ToInt(), nil
 }
 
 func (ec *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
-	panic("not implemented") // TODO: Implement
+	gasPrice, err := ec.c.GetGasPrice()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return gasPrice.ToInt(), nil
 }
 
 func (ec *Client) SendTransaction(ctx context.Context, tx *cfxSdkTypes.SignedTransaction) error {
-	panic("not implemented") // TODO: Implement
+	encoded, err := tx.Encode()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	_, err = ec.c.SendRawTransaction(encoded)
+	return errors.WithStack(err)
 }
 
 func (ec *Client) Call(ctx context.Context, request *RosettaTypes.CallRequest) (*RosettaTypes.CallResponse, error) {
-	panic("not implemented") // TODO: Implement
+	var result interface{}
+	err := ec.c.CallRPC(&result, request.Method, request.Parameters)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return &RosettaTypes.CallResponse{}, nil
 }
 
 // Close shuts down the RPC client connection.
 func (ec *Client) Close() {
 	ec.c.Close()
-}
-
-func toBlockNumArg(number *big.Int) string {
-	if number == nil {
-		return "latest"
-	}
-	pending := big.NewInt(-1)
-	if number.Cmp(pending) == 0 {
-		return "pending"
-	}
-	return hexutil.EncodeBig(number)
 }
 
 func convertTime(time uint64) int64 {

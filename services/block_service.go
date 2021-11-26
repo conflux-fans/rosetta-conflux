@@ -49,6 +49,7 @@ func (s *BlockAPIService) Block(
 	}, nil
 }
 
+// TODO: implement BlockTransaction
 // BlockTransaction implements the /block/transaction endpoint.
 func (s *BlockAPIService) BlockTransaction(
 	ctx context.Context,

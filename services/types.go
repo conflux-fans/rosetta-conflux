@@ -6,7 +6,6 @@ import (
 
 	cfxSdkTypes "github.com/Conflux-Chain/go-conflux-sdk/types"
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 // Client is used by the servicers to get block
@@ -31,7 +30,7 @@ type Client interface {
 		*types.PartialBlockIdentifier,
 	) (*types.AccountBalanceResponse, error)
 
-	PendingNonceAt(context.Context, common.Address) (uint64, error)
+	PendingNonceAt(context.Context, cfxSdkTypes.Address) (*big.Int, error)
 
 	SuggestGasPrice(ctx context.Context) (*big.Int, error)
 

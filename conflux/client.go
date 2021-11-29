@@ -2,7 +2,6 @@ package conflux
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"github.com/Conflux-Chain/go-conflux-sdk/cfxclient/bulk"
 	cfxSdkTypes "github.com/Conflux-Chain/go-conflux-sdk/types"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
+	"github.com/conflux-fans/rosetta-conflux/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/pkg/errors"
 )
@@ -151,12 +151,12 @@ func (ec *Client) populateTransaction(
 	}
 	ops = append(ops, traceOps...)
 
-	receiptMap, err := objToMap(tx.Receipt)
+	receiptMap, err := common.MarshalToMap(tx.Receipt)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to convert receipt to mapping")
 	}
 
-	traceMap, err := objToMap(tx.Trace)
+	traceMap, err := common.MarshalToMap(tx.Trace)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to convert trace to mapping")
 	}
@@ -175,16 +175,6 @@ func (ec *Client) populateTransaction(
 	}
 
 	return populatedTransaction, nil
-}
-
-func objToMap(obj interface{}) (val map[string]interface{}, err error) {
-	b, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(b, &val)
-	return
 }
 
 // ============= gen operates =============
@@ -516,6 +506,14 @@ func (ec *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 		return nil, errors.WithStack(err)
 	}
 	return gasPrice.ToInt(), nil
+}
+
+func (ec *Client) EpochNumber(ctx context.Context) (*big.Int, error) {
+	epoch, err := ec.c.GetEpochNumber()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return epoch.ToInt(), nil
 }
 
 func (ec *Client) SendTransaction(ctx context.Context, tx *cfxSdkTypes.SignedTransaction) error {

@@ -34,10 +34,29 @@ type Client interface {
 
 	SuggestGasPrice(ctx context.Context) (*big.Int, error)
 
+	EpochNumber(ctx context.Context) (*big.Int, error)
+
 	SendTransaction(ctx context.Context, tx *cfxSdkTypes.SignedTransaction) error
 
 	Call(
 		ctx context.Context,
 		request *types.CallRequest,
 	) (*types.CallResponse, error)
+}
+
+type options struct {
+	From string `json:"from"`
+}
+
+type metadata struct {
+	Nonce       *big.Int `json:"nonce"`
+	GasPrice    *big.Int `json:"gas_price"`
+	EpochHeight uint64   `json:"epoch_height"`
+}
+
+type parseMetadata struct {
+	Nonce       uint64   `json:"nonce"`
+	GasPrice    *big.Int `json:"gas_price"`
+	EpochHeight uint64   `json:"epoch_height"`
+	ChainID     *big.Int `json:"chain_id"`
 }

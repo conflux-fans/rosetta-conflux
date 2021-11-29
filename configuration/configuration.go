@@ -3,6 +3,7 @@ package configuration
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"strconv"
 
@@ -74,7 +75,11 @@ type Configuration struct {
 	// SkipGethAdmin          bool
 
 	// Block Reward Data
-	// Params *params.ChainConfig
+	Params *ChainConfig
+}
+
+type ChainConfig struct {
+	ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
 }
 
 // LoadConfiguration attempts to create a new Configuration

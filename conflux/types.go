@@ -125,6 +125,10 @@ const (
 	// of a transfer.
 	TransferGasLimit = int64(21000) //nolint:gomnd
 
+	// TransferGasLimit is the gas limit
+	// of a transfer.
+	TransferStorageLimit = int64(0) //nolint:gomnd
+
 	// MainnetGethArguments are the arguments to start a mainnet geth instance.
 	// MainnetGethArguments = `--config=/app/ethereum/geth.toml --gcmode=archive --graphql`
 

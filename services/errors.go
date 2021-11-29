@@ -144,6 +144,18 @@ var (
 		Message:   "geth not ready",
 		Retriable: true,
 	}
+
+	ErrUnrecognizedNetwork = &types.Error{
+		Code:      14, //nolint
+		Message:   "unrecogoized network id",
+		Retriable: false,
+	}
+
+	ErrgGetTxHash = &types.Error{
+		Code:      15, //nolint
+		Message:   "failed get transaction hash",
+		Retriable: false,
+	}
 )
 
 // wrapErr adds details to the types.Error provided. We use a function

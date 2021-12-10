@@ -16,6 +16,7 @@ package conflux
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -63,7 +64,10 @@ const (
 	UncleRewardOpType = "UNCLE_REWARD"
 
 	// FeeOpType is used to represent fee operations.
-	FeeOpType = "FEE"
+	FeeOpType              = "FEE"
+	GasFeeOpType           = "GAS_FEE"
+	StorageCollaterlOpType = "STORAGE_COLLATERAL_FEE"
+	StorageReleaseOpType   = "STORAGE_RELEASE"
 
 	// CallOpType is used to represent CALL trace operations.
 	CallOpType = "CALL"
@@ -149,12 +153,12 @@ var (
 	// MainnetGenesisBlockIdentifier is the *types.BlockIdentifier
 	// of the mainnet genesis block.
 	MainnetGenesisBlockIdentifier = &types.BlockIdentifier{
-		Hash:  "", //params.MainnetGenesisHash.Hex(),
+		Hash:  "0xf6cec5af1ee95f56038fc30589bcfeb4b960075c3c76b8a0eaa6d36e8e623b50", //params.MainnetGenesisHash.Hex(),
 		Index: GenesisBlockIndex,
 	}
 
 	TestnetGenesisBlockIdentifier = &types.BlockIdentifier{
-		Hash:  "", //params.MainnetGenesisHash.Hex(),
+		Hash:  "0x3fb9d350f95424c3c27fcf248d9a6f633a83c2a75c11ef887ea41540c85e7804", //params.MainnetGenesisHash.Hex(),
 		Index: GenesisBlockIndex,
 	}
 
@@ -223,6 +227,10 @@ var (
 		// "eth_getBlockByNumber",
 		// "eth_getTransactionReceipt",
 	}
+)
+
+var (
+	StorageUint = new(big.Int).Div(big.NewInt(1e18), big.NewInt(1024))
 )
 
 // JSONRPC is the interface for accessing go-ethereum's JSON RPC endpoint.

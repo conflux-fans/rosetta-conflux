@@ -8,6 +8,7 @@ import (
 
 	sdk "github.com/Conflux-Chain/go-conflux-sdk"
 	"github.com/Conflux-Chain/go-conflux-sdk/cfxclient/bulk"
+	"github.com/Conflux-Chain/go-conflux-sdk/types"
 	cfxSdkTypes "github.com/Conflux-Chain/go-conflux-sdk/types"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/conflux-fans/rosetta-conflux/common"
@@ -32,11 +33,26 @@ func NewClient(url string) (*Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create client")
 	}
+	// c.UseBatchCallRpcMiddleware(middleware.BatchCallRpcConsoleMiddleware)
+	// c.UseCallRpcMiddleware(middleware.CallRpcConsoleMiddleware)
 	return &Client{c}, nil
 }
 
 func (ec *Client) Status(_ context.Context) (*RosettaTypes.BlockIdentifier, int64, *RosettaTypes.SyncStatus, []*RosettaTypes.Peer, error) {
-	panic("not implemented") // TODO: Implement
+	block, err := ec.getRpcBlock(nil, false)
+	if err != nil {
+		return nil, -1, nil, nil, err
+	}
+
+	return &RosettaTypes.BlockIdentifier{
+			Hash:  block.Hash.String(),
+			Index: block.BlockNumber.ToInt().Int64(),
+		},
+		convertTime(block.Timestamp.ToInt().Uint64()),
+		// TODO: require rpc implement sync status and peers methods
+		nil,
+		nil,
+		nil
 }
 
 func (ec *Client) Block(ctx context.Context, blockIdentifier *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.Block, error) {
@@ -102,35 +118,68 @@ func (ec *Client) populateTransactions(
 }
 
 func (ec *Client) blockRewardTransaction(block *cfxSdkTypes.Block) (*RosettaTypes.Transaction, error) {
-	reward, err := ec.getBlockReward(block)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get block reward")
+	if block.BlockNumber.ToInt().Int64() == GenesisBlockIndex {
+		return &RosettaTypes.Transaction{
+			TransactionIdentifier: &RosettaTypes.TransactionIdentifier{
+				Hash: block.Hash.String(),
+			},
+			Operations: []*RosettaTypes.Operation{},
+		}, nil
 	}
 
-	rewardExceptTxfee := big.NewInt(0).Sub(reward.TotalReward.ToInt(), reward.TxFee.ToInt())
+	txIdentifier := &RosettaTypes.TransactionIdentifier{
+		Hash: block.Hash.String(),
+	}
+
+	// if block is not pivot, return
+	isPivot, err := ec.IsPivotBlock(block)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isPivot {
+		return &RosettaTypes.Transaction{
+			TransactionIdentifier: txIdentifier,
+		}, nil
+	}
+
+	// if block is pivot block, include epoch-12 rewards
+	rewardEpochNum := new(big.Int).Sub(block.EpochNumber.ToInt(), big.NewInt(12))
+	if rewardEpochNum.Sign() < 0 {
+		return &RosettaTypes.Transaction{
+			TransactionIdentifier: txIdentifier,
+		}, nil
+	}
+
+	blockRewards, err := ec.getEpochReward(*cfxSdkTypes.NewEpochNumberBig(rewardEpochNum))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get epoch reward")
+	}
 
 	var ops []*RosettaTypes.Operation
-	miningRewardOp := &RosettaTypes.Operation{
-		OperationIdentifier: &RosettaTypes.OperationIdentifier{
-			Index: 0,
-		},
-		Type:   MinerRewardOpType,
-		Status: RosettaTypes.String(SuccessStatus),
-		Account: &RosettaTypes.AccountIdentifier{
-			Address: block.Miner.String(),
-		},
-		Amount: &RosettaTypes.Amount{
-			Value:    rewardExceptTxfee.String(),
-			Currency: Currency,
-		},
+	for _, reward := range blockRewards {
+		// totalReward := big.NewInt(0).Sub(reward.TotalReward.ToInt(), reward.TxFee.ToInt())
+		totalReward := reward.TotalReward.ToInt()
+		miningRewardOp := &RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: 0,
+			},
+			Type:   MinerRewardOpType,
+			Status: RosettaTypes.String(SuccessStatus),
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: block.Miner.String(),
+			},
+			Amount: &RosettaTypes.Amount{
+				Value:    totalReward.String(),
+				Currency: Currency,
+			},
+		}
+		ops = append(ops, miningRewardOp)
 	}
-	ops = append(ops, miningRewardOp)
 
 	return &RosettaTypes.Transaction{
-		TransactionIdentifier: &RosettaTypes.TransactionIdentifier{
-			Hash: block.Hash.String(),
-		},
-		Operations: ops,
+		TransactionIdentifier: txIdentifier,
+		Operations:            ops,
 	}, nil
 }
 
@@ -140,8 +189,9 @@ func (ec *Client) populateTransaction(
 	ops := []*RosettaTypes.Operation{}
 
 	// Compute fee operations
-	feeOps := feeOps(tx)
-	ops = append(ops, feeOps...)
+	ops = appendFeeOps(tx, ops)
+	ops = appendStorageUsedOps(tx, ops)
+	ops = appendStorageRelaseOps(tx, ops)
 
 	// Compute trace operations
 	// traces := flattenTraces(tx.Trace, []*flatCall{})
@@ -179,15 +229,22 @@ func (ec *Client) populateTransaction(
 
 // ============= gen operates =============
 
-func feeOps(ltx *loadedTransaction) []*RosettaTypes.Operation {
-	header, tx, receipt := ltx.BlockHeader, ltx.Transaction, ltx.Receipt
+func appendFeeOps(ltx *loadedTransaction, ops []*RosettaTypes.Operation) []*RosettaTypes.Operation {
+	fmt.Printf("header %+v, tx %+v, receipt %+v\n", *ltx.BlockHeader, *ltx.Transaction, *ltx.Receipt)
+	_, tx, receipt := ltx.BlockHeader, ltx.Transaction, ltx.Receipt
 	gasFee := (*big.Int)(receipt.GasFee)
-	return []*RosettaTypes.Operation{
-		{
+
+	// 如果是gas sponsored，跳过；否则 from gasOp 余额减少，无接收者
+
+	var gasOp *RosettaTypes.Operation
+
+	// var ops []*RosettaTypes.Operation
+	if !receipt.GasCoveredBySponsor {
+		gasOp = &RosettaTypes.Operation{
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 0,
+				Index: int64(len(ops)),
 			},
-			Type:   FeeOpType,
+			Type:   GasFeeOpType,
 			Status: RosettaTypes.String(SuccessStatus),
 			Account: &RosettaTypes.AccountIdentifier{
 				Address: tx.From.String(),
@@ -196,28 +253,63 @@ func feeOps(ltx *loadedTransaction) []*RosettaTypes.Operation {
 				Value:    new(big.Int).Neg(gasFee).String(),
 				Currency: Currency,
 			},
-		},
+		}
+		ops = append(ops, gasOp)
+	}
+	return ops
+}
 
-		{
+func appendStorageUsedOps(ltx *loadedTransaction, ops []*RosettaTypes.Operation) []*RosettaTypes.Operation {
+	tx, receipt := ltx.Transaction, ltx.Receipt
+	storageUsed := new(big.Int).SetUint64(uint64(receipt.StorageCollateralized))
+	storageFee := new(big.Int).Mul(StorageUint, storageUsed)
+
+	// 如果是storage sponsored，跳过；否则 from storageOp 余额减少，无接收者
+	// var ops []*RosettaTypes.Operation
+	if !receipt.StorageCoveredBySponsor {
+		storageSpendOp := &RosettaTypes.Operation{
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 1,
+				Index: int64(len(ops)),
 			},
-			RelatedOperations: []*RosettaTypes.OperationIdentifier{
-				{
-					Index: 0,
-				},
-			},
-			Type:   FeeOpType,
+			Type:   StorageCollaterlOpType,
 			Status: RosettaTypes.String(SuccessStatus),
 			Account: &RosettaTypes.AccountIdentifier{
-				Address: header.Miner.String(),
+				Address: tx.From.String(),
 			},
 			Amount: &RosettaTypes.Amount{
-				Value:    gasFee.String(),
+				Value:    new(big.Int).Neg(storageFee).String(),
 				Currency: Currency,
 			},
-		},
+		}
+		ops = append(ops, storageSpendOp)
 	}
+	return ops
+}
+
+// FIXME: 没有release后是否release给sponsor的标志，无法准确生成ops
+func appendStorageRelaseOps(ltx *loadedTransaction, ops []*RosettaTypes.Operation) []*RosettaTypes.Operation {
+	// var ops []*RosettaTypes.Operation
+	// storage release，目标地址是否sponsor，非sponsor，targe地址余额增加；sponsored如何处理？
+	for _, sc := range ltx.Receipt.StorageReleased {
+		// TODO:判断目标地址是否sponsored
+		storageReleaseOp := &RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: int64(len(ops)),
+			},
+			Type:   StorageReleaseOpType,
+			Status: RosettaTypes.String(SuccessStatus),
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: sc.Address.String(),
+			},
+			Amount: &RosettaTypes.Amount{
+				Value:    StorageFee(uint64(sc.Collaterals)).String(),
+				Currency: Currency,
+			},
+		}
+		// startIdx++
+		ops = append(ops, storageReleaseOp)
+	}
+	return ops
 }
 
 func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*RosettaTypes.Operation, error) {
@@ -241,7 +333,7 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 		}
 
 		// if call and value is 0 skip
-		if trace.Raw.Type == cfxSdkTypes.CALL_TYPE && value.Cmp(big.NewInt(0)) == 0 {
+		if trace.Type == cfxSdkTypes.CALL_TYPE && value.Cmp(big.NewInt(0)) == 0 {
 			continue
 		}
 
@@ -297,7 +389,7 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 func getOpElems(node cfxSdkTypes.LocalizedTraceNode) (
 	from cfxSdkTypes.Address, to cfxSdkTypes.Address,
 	traceType string, value *big.Int, status string, err error) {
-	switch node.Raw.Type {
+	switch node.Type {
 	case cfxSdkTypes.CALL_TYPE:
 		r := node.CallWithResult
 		return r.From, r.To, strings.ToUpper(r.CallType), r.Value.ToInt(), getOpStatus(r.Outcome), nil
@@ -322,7 +414,7 @@ func getOpStatus(outcome string) string {
 }
 
 func getOpMetadata(node cfxSdkTypes.LocalizedTraceNode) map[string]interface{} {
-	if node.Raw.Type == cfxSdkTypes.CALL_TYPE {
+	if node.Type == cfxSdkTypes.CALL_TYPE {
 		if node.CallWithResult.Outcome == "success" {
 			return nil
 		}
@@ -332,7 +424,7 @@ func getOpMetadata(node cfxSdkTypes.LocalizedTraceNode) map[string]interface{} {
 		}
 	}
 
-	if node.Raw.Type == cfxSdkTypes.CREATE_TYPE {
+	if node.Type == cfxSdkTypes.CREATE_TYPE {
 		if node.CreateWithResult.Outcome == "success" {
 			return nil
 		}
@@ -356,7 +448,7 @@ func (ec *Client) getBlock(
 	error,
 ) {
 	// get block
-	rpcBlock, err := ec.getRpcBlock(_blockIdentifier)
+	rpcBlock, err := ec.getRpcBlock(_blockIdentifier, true)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to get raw block by rpc")
 	}
@@ -379,6 +471,9 @@ func (ec *Client) getBlock(
 		if *errs[i] != nil {
 			return nil, nil, *errs[i]
 		}
+
+		fmt.Printf("\nreceipt %+v\n\n", *receipts[i])
+
 		if receipts[i] == nil {
 			return nil, nil, fmt.Errorf("got empty receipt for %x", rpcTxs[i].Hash)
 		}
@@ -398,19 +493,19 @@ func (ec *Client) getBlock(
 
 	for i := range errs {
 		if *errs[i] != nil {
-			return nil, nil, *errs[i]
+			return nil, nil, errors.Wrapf(*errs[i], "failed to get the %vth trace", i)
 		}
 	}
 
+	// fmt.Printf("rpcBlock %v\n", rpcBlock)
 	// Convert all txs to loaded txs
 	txs := make([]*cfxSdkTypes.Transaction, len(rpcTxs))
 	loadedTxs := make([]*loadedTransaction, len(rpcTxs))
 	for i, tx := range rpcTxs {
 		txs[i] = &tx
 		receipt := receipts[i]
-
-		loadedTxs[i].BlockHeader = &rpcBlock.BlockHeader
 		loadedTxs[i] = &loadedTransaction{}
+		loadedTxs[i].BlockHeader = &rpcBlock.BlockHeader
 		loadedTxs[i].Transaction = txs[i]
 		loadedTxs[i].Receipt = receipt
 
@@ -425,17 +520,88 @@ func (ec *Client) getBlock(
 	return rpcBlock, loadedTxs, nil
 }
 
-func (ec *Client) getRpcBlock(_blockIdentifier *RosettaTypes.PartialBlockIdentifier) (
+func (ec *Client) getRpcBlock(_blockIdentifier *RosettaTypes.PartialBlockIdentifier, isContainTxs bool) (
 	*cfxSdkTypes.Block, error,
 ) {
-	if _blockIdentifier.Hash != nil {
-		return ec.c.GetBlockByHash(cfxSdkTypes.Hash(*_blockIdentifier.Hash))
+	getRawRpcBlock := func(bockIdtf *RosettaTypes.PartialBlockIdentifier) (*cfxSdkTypes.Block, error) {
+		// return latest rewarded block when identifier invalid
+		if bockIdtf == nil || (bockIdtf.Hash == nil && bockIdtf.Index == nil) {
+			epochNum, err := ec.c.GetEpochNumber()
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+
+			latestRewarded := new(big.Int).Sub(epochNum.ToInt(), big.NewInt(12))
+			if latestRewarded.Sign() == -1 {
+				return nil, errors.New("block has no reward yet")
+			}
+
+			return ec.c.GetBlockByEpoch(types.NewEpochNumberBig(latestRewarded))
+		}
+
+		if bockIdtf.Hash != nil {
+			if isContainTxs {
+				sb, err := ec.c.GetBlockSummaryByHash(cfxSdkTypes.Hash(*bockIdtf.Hash))
+				if err != nil {
+					return nil, errors.WithStack(err)
+				}
+				return &cfxSdkTypes.Block{
+					BlockHeader: sb.BlockHeader,
+				}, nil
+			}
+			return ec.c.GetBlockByHash(cfxSdkTypes.Hash(*bockIdtf.Hash))
+		}
+
+		blockNum := uint64(*bockIdtf.Index)
+		if blockNum != uint64(GenesisBlockIndex) {
+			if !isContainTxs {
+				return ec.c.GetBlockByBlockNumber(hexutil.Uint64(blockNum))
+			}
+
+			sb, err := ec.c.GetBlockSummaryByBlockNumber(hexutil.Uint64(blockNum))
+			if err != nil {
+				return nil, err
+			}
+			return &cfxSdkTypes.Block{
+				BlockHeader: sb.BlockHeader,
+			}, nil
+		}
+
+		// genesis block
+		gensisiBlock, err := ec.c.GetBlockByEpoch(cfxSdkTypes.EpochEarliest)
+		if err != nil {
+			return nil, err
+		}
+		// set genesis block transactions to empty becuase of no receipt and no trace exist for them.
+		gensisiBlock.Transactions = nil
+		gensisiBlock.Timestamp = types.NewBigInt(0x5f9998b9)
+
+		return gensisiBlock, nil
 	}
-	if _blockIdentifier.Index != nil {
-		blockNum := uint64(*_blockIdentifier.Index)
-		return ec.c.GetBlockByBlockNumber(hexutil.Uint64(blockNum))
+
+	raw, err := getRawRpcBlock(_blockIdentifier)
+	if err != nil {
+		return nil, err
 	}
-	return ec.c.GetBlockByEpoch(cfxSdkTypes.EpochLatestState)
+
+	if raw == nil {
+		return nil, errors.New("The block has not been produced yet")
+	}
+
+	// replace parent hash to previours block hash instead of what in tree graph
+	parentNum := raw.BlockNumber.ToInt().Int64() - 1
+	if parentNum >= 0 {
+		parent, err := getRawRpcBlock(&RosettaTypes.PartialBlockIdentifier{
+			Index: &parentNum,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		raw.ParentHash = parent.Hash
+	}
+
+	return raw, nil
 }
 
 type loadedTransaction struct {
@@ -451,12 +617,14 @@ func (ec *Client) Balance(ctx context.Context,
 	block *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.AccountBalanceResponse, error) {
 
 	// get rpc block
-	rpcBlock, err := ec.getRpcBlock(block)
+	rpcBlock, err := ec.getRpcBlock(block, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get raw block by rpc")
 	}
 
 	// get account balance
+	// 1. get pre epoch balance
+	// 2. iterate all transactions in till this block of this epoch
 	addr := ec.c.MustNewAddress(account.Address)
 	epoch := cfxSdkTypes.NewEpochNumber(rpcBlock.EpochNumber)
 	balance, err := ec.c.GetBalance(addr, epoch)
@@ -477,7 +645,7 @@ func (ec *Client) Balance(ctx context.Context,
 	return &RosettaTypes.AccountBalanceResponse{
 		Balances: []*RosettaTypes.Amount{
 			{
-				Value:    balance.String(),
+				Value:    balance.ToInt().String(),
 				Currency: Currency,
 			},
 		},
@@ -544,7 +712,21 @@ func convertTime(time uint64) int64 {
 }
 
 // ================== wrapper methods =========================
+
+func (ec *Client) getEpochReward(epockNum cfxSdkTypes.Epoch) ([]cfxSdkTypes.RewardInfo, error) {
+	return ec.c.GetBlockRewardInfo(epockNum)
+}
+
 func (ec *Client) getBlockReward(rpcBlock *cfxSdkTypes.Block) (*cfxSdkTypes.RewardInfo, error) {
+	if rpcBlock.EpochNumber.ToInt().Int64() == GenesisBlockIndex {
+		return &cfxSdkTypes.RewardInfo{
+			BlockHash:   rpcBlock.Hash,
+			Author:      rpcBlock.Miner,
+			TotalReward: types.NewBigInt(0),
+			BaseReward:  types.NewBigInt(0),
+			TxFee:       types.NewBigInt(0),
+		}, nil
+	}
 	epochReward, err := ec.c.GetBlockRewardInfo(*cfxSdkTypes.NewEpochNumber(rpcBlock.EpochNumber))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get epoch reward")
@@ -554,5 +736,18 @@ func (ec *Client) getBlockReward(rpcBlock *cfxSdkTypes.Block) (*cfxSdkTypes.Rewa
 			return &blockReward, nil
 		}
 	}
-	return nil, errors.Wrap(err, "not found block reward in epoch rewards")
+	return nil, errors.New("not found block reward in epoch rewards")
+}
+
+func (ec *Client) IsPivotBlock(block *cfxSdkTypes.Block) (bool, error) {
+	pivotBlock, err := ec.c.GetBlockByEpoch(cfxSdkTypes.NewEpochNumberBig(block.EpochNumber.ToInt()))
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get pivot block")
+	}
+	return pivotBlock.Hash == block.Hash, nil
+}
+
+func StorageFee(amount uint64) *big.Int {
+	storageUsed := new(big.Int).SetUint64(amount)
+	return new(big.Int).Mul(StorageUint, storageUsed)
 }

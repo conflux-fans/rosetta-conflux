@@ -95,7 +95,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 		var err error
 		client, err = conflux.NewClient(cfg.GethURL)
 		if err != nil {
-			return fmt.Errorf("%w: cannot initialize conflux client", err)
+			return fmt.Errorf("%+v: cannot initialize conflux client", err)
 		}
 		defer client.Close()
 	}

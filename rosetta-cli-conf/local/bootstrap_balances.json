@@ -1,0 +1,12 @@
+[
+    {
+        "account_identifier": {
+            "address": "net1037:aap9kthvctunvf030rbkk9k7zbzyz12dajrt1cb5ym"
+        },
+        "currency": {
+            "symbol": "CFX",
+            "decimals": 18
+        },
+        "value": "10000000000000000000000"
+    }   
+]

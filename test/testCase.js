@@ -47,7 +47,6 @@ async function init() {
     // return
 
     contracts.sponsorWhitelistControl = cfx.Contract({ abi: SponsorWhitelistControl.abi, address: format.address(SponsorWhitelistControl.address, cfx.networkId) })
-
     if (!contractAddrs.normalContract && !contractAddrs.sponsoredContract) {
         await deploy();
     }
@@ -63,6 +62,7 @@ async function deploy() {
     let { contractCreated, epochNumber } = await waitReceipt(ncHash)
     contractAddrs.normalContract = contractCreated
     console.log("deploy normalContract done on epoch", epochNumber)
+    
 
     let sc = cfx.Contract({ abi: testTraceMaterial.abi, bytecode: testTraceMaterial.bytecode })
     const scHash = await sc.constructor().sendTransaction({ from: accounts[0].address })
@@ -70,9 +70,11 @@ async function deploy() {
     contractAddrs.sponsoredContract = receipt.contractCreated;
     console.log("deploy sponsoredContract done on epoch", receipt.epochNumber)
     console.log("deploy done", contractAddrs)
+    
 
     // accounts1 sponsor for it
     await contracts.sponsorWhitelistControl.setSponsorForGas(contractAddrs.sponsoredContract, 1e15).sendTransaction({ from: accounts[1].address, value: "100000000000000000000" })
+    return
     await contracts.sponsorWhitelistControl.setSponsorForCollateral(contractAddrs.sponsoredContract).sendTransaction({ from: accounts[1].address, value: "100000000000000000000" })
     console.log("sponsor done")
 }

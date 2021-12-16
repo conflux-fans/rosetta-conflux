@@ -10,6 +10,7 @@ import (
 	"github.com/Conflux-Chain/go-conflux-sdk/cfxclient/bulk"
 	"github.com/Conflux-Chain/go-conflux-sdk/types"
 	cfxSdkTypes "github.com/Conflux-Chain/go-conflux-sdk/types"
+	"github.com/Conflux-Chain/go-conflux-sdk/types/cfxaddress"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/pkg/errors"
@@ -341,44 +342,50 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 			continue
 		}
 
-		fromOp := &RosettaTypes.Operation{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: startIndex,
-			},
-			Type:   opType,
-			Status: RosettaTypes.String(status),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: from.String(),
-			},
-			Amount: &RosettaTypes.Amount{
-				Value:    new(big.Int).Neg(value).String(),
-				Currency: Currency,
-			},
-			Metadata: metadata,
-		}
+		if from.GetAddressType() != cfxaddress.AddressTypeBuiltin {
 
-		toOp := &RosettaTypes.Operation{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: startIndex + 1,
-			},
-			RelatedOperations: []*RosettaTypes.OperationIdentifier{
-				{
+			fromOp := &RosettaTypes.Operation{
+				OperationIdentifier: &RosettaTypes.OperationIdentifier{
 					Index: startIndex,
 				},
-			},
-			Type:   opType,
-			Status: RosettaTypes.String(status),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: to.String(),
-			},
-			Amount: &RosettaTypes.Amount{
-				Value:    value.String(),
-				Currency: Currency,
-			},
-			Metadata: metadata,
+				Type:   opType,
+				Status: RosettaTypes.String(status),
+				Account: &RosettaTypes.AccountIdentifier{
+					Address: from.String(),
+				},
+				Amount: &RosettaTypes.Amount{
+					Value:    new(big.Int).Neg(value).String(),
+					Currency: Currency,
+				},
+				Metadata: metadata,
+			}
+			ops = append(ops, fromOp)
 		}
 
-		ops = append(ops, fromOp, toOp)
+		if to.GetAddressType() != cfxaddress.AddressTypeBuiltin {
+			toOp := &RosettaTypes.Operation{
+				OperationIdentifier: &RosettaTypes.OperationIdentifier{
+					Index: startIndex + 1,
+				},
+				RelatedOperations: []*RosettaTypes.OperationIdentifier{
+					{
+						Index: startIndex,
+					},
+				},
+				Type:   opType,
+				Status: RosettaTypes.String(status),
+				Account: &RosettaTypes.AccountIdentifier{
+					Address: to.String(),
+				},
+				Amount: &RosettaTypes.Amount{
+					Value:    value.String(),
+					Currency: Currency,
+				},
+				Metadata: metadata,
+			}
+
+			ops = append(ops, toOp)
+		}
 
 		startIndex += 2
 	}

@@ -195,6 +195,10 @@ var (
 		MinerRewardOpType,
 		// UncleRewardOpType,
 		FeeOpType,
+
+		GasFeeOpType,
+		StorageCollaterlOpType,
+		StorageReleaseOpType,
 		// CallOpType,
 		CreateOpType,
 		// CallResultOpType,

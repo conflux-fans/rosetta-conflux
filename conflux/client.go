@@ -11,7 +11,6 @@ import (
 	"github.com/Conflux-Chain/go-conflux-sdk/types"
 	cfxSdkTypes "github.com/Conflux-Chain/go-conflux-sdk/types"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/conflux-fans/rosetta-conflux/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/pkg/errors"
 )
@@ -201,15 +200,16 @@ func (ec *Client) populateTransaction(
 	}
 	ops = append(ops, traceOps...)
 
-	receiptMap, err := common.MarshalToMap(tx.Receipt)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to convert receipt to mapping")
-	}
+	// receiptMap, err := common.MarshalToMap(tx.Receipt)
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "failed to convert receipt to mapping")
+	// }
 
-	traceMap, err := common.MarshalToMap(tx.Trace)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to convert trace to mapping")
-	}
+	// traceJson, err := json.Marshal(tx.Trace)
+	// traceJson, err := common.MarshalToMap(tx.Trace)
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "failed to json marshal trace")
+	// }
 
 	populatedTransaction := &RosettaTypes.Transaction{
 		TransactionIdentifier: &RosettaTypes.TransactionIdentifier{
@@ -219,8 +219,8 @@ func (ec *Client) populateTransaction(
 		Metadata: map[string]interface{}{
 			"gas_limit": tx.Transaction.Gas,
 			"gas_price": tx.Transaction.GasPrice,
-			"receipt":   receiptMap,
-			"trace":     traceMap,
+			"receipt":   tx.Receipt,
+			"trace":     tx.Trace,
 		},
 	}
 
@@ -264,25 +264,29 @@ func appendStorageUsedOps(ltx *loadedTransaction, ops []*RosettaTypes.Operation)
 	storageUsed := new(big.Int).SetUint64(uint64(receipt.StorageCollateralized))
 	storageFee := new(big.Int).Mul(StorageUint, storageUsed)
 
-	// 如果是storage sponsored，跳过；否则 from storageOp 余额减少，无接收者
-	// var ops []*RosettaTypes.Operation
-	if !receipt.StorageCoveredBySponsor {
-		storageSpendOp := &RosettaTypes.Operation{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: int64(len(ops)),
-			},
-			Type:   StorageCollaterlOpType,
-			Status: RosettaTypes.String(SuccessStatus),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: tx.From.String(),
-			},
-			Amount: &RosettaTypes.Amount{
-				Value:    new(big.Int).Neg(storageFee).String(),
-				Currency: Currency,
-			},
-		}
-		ops = append(ops, storageSpendOp)
+	// if storageFee is 0, skip
+	// if storage sponsored, skip
+	if storageFee.Sign() == 0 || receipt.StorageCoveredBySponsor {
+		return ops
 	}
+
+	// 否则 from storageOp 余额减少，无接收者
+	// var ops []*RosettaTypes.Operation
+	storageSpendOp := &RosettaTypes.Operation{
+		OperationIdentifier: &RosettaTypes.OperationIdentifier{
+			Index: int64(len(ops)),
+		},
+		Type:   StorageCollaterlOpType,
+		Status: RosettaTypes.String(SuccessStatus),
+		Account: &RosettaTypes.AccountIdentifier{
+			Address: tx.From.String(),
+		},
+		Amount: &RosettaTypes.Amount{
+			Value:    new(big.Int).Neg(storageFee).String(),
+			Currency: Currency,
+		},
+	}
+	ops = append(ops, storageSpendOp)
 	return ops
 }
 
@@ -481,7 +485,7 @@ func (ec *Client) getBlock(
 
 	// get traces
 	bulkCaller.Clear()
-	txsTraces := make([][]cfxSdkTypes.LocalizedTrace, len(rpcTxs))
+	txsTraces := make([]*[]cfxSdkTypes.LocalizedTrace, len(rpcTxs))
 	errs = make([]*error, len(rpcTxs))
 	for i, v := range rpcTxs {
 		txsTraces[i], errs[i] = bulkCaller.Trace().GetTransactionTraces(v.Hash)
@@ -501,8 +505,8 @@ func (ec *Client) getBlock(
 	// Convert all txs to loaded txs
 	txs := make([]*cfxSdkTypes.Transaction, len(rpcTxs))
 	loadedTxs := make([]*loadedTransaction, len(rpcTxs))
-	for i, tx := range rpcTxs {
-		txs[i] = &tx
+	for i := range rpcTxs {
+		txs[i] = &rpcTxs[i]
 		receipt := receipts[i]
 		loadedTxs[i] = &loadedTransaction{}
 		loadedTxs[i].BlockHeader = &rpcBlock.BlockHeader
@@ -514,7 +518,7 @@ func (ec *Client) getBlock(
 		// 	continue
 		// }
 
-		loadedTxs[i].Trace = txsTraces[i]
+		loadedTxs[i].Trace = *txsTraces[i]
 		// loadedTxs[i].RawTrace = rawTraces[i].Result
 	}
 	return rpcBlock, loadedTxs, nil
@@ -554,7 +558,7 @@ func (ec *Client) getRpcBlock(_blockIdentifier *RosettaTypes.PartialBlockIdentif
 
 		blockNum := uint64(*bockIdtf.Index)
 		if blockNum != uint64(GenesisBlockIndex) {
-			if !isContainTxs {
+			if isContainTxs {
 				return ec.c.GetBlockByBlockNumber(hexutil.Uint64(blockNum))
 			}
 

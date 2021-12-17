@@ -12,6 +12,7 @@
 
 // # 测试结果
 // 1. 调用被赞助的合约且导致 storage release的，estimate gas 有一倍误差
+// 2. hardfork前；调用被赞助的合约且失败时，receipt中 gas/storage 是否被赞助的信息是错误的
 
 const { Conflux, Contract, format, Drip } = require('js-conflux-sdk');
 const { SponsorWhitelistControl } = require('js-conflux-sdk/src/contract/internal')
@@ -42,11 +43,11 @@ const SponsorControl = cfx.InternalContract('SponsorWhitelistControl');
 async function main() {
     try {
         await init();
-        // await transCfxToUser(10);
-        // await transCfxToContract(10);
-        // await invokeContractLeadStorageRelease();
-        // await invokeContractSponsored();
-        // await invokeSpnsoneredContractLeadStorageRelease();
+        await transCfxToUser(10);
+        await transCfxToContract(10);
+        await invokeContractLeadStorageRelease();
+        await invokeContractSponsored();
+        await invokeSpnsoneredContractLeadStorageRelease();
         await stake();
         await unstake();
     } catch (e) {
@@ -59,7 +60,7 @@ async function init() {
     accounts.push(cfx.wallet.addPrivateKey("0xd32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a3686380"));
     accounts.push(cfx.wallet.addPrivateKey("0xe32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a3686381"))
     console.log("accounts", accounts)
-    return
+    // return
 
     contracts.sponsorWhitelistControl = cfx.Contract({ abi: SponsorWhitelistControl.abi, address: format.address(SponsorWhitelistControl.address, cfx.networkId) })
     if (!contractAddrs.normalContract && !contractAddrs.sponsoredContract) {
@@ -118,23 +119,8 @@ async function invokeContractSponsored() {
 
 async function invokeSpnsoneredContractLeadStorageRelease() {
     console.log("use storage of sponored contract", await contracts.sponsoredContract.setSlots([1, 2, 3, 4]).sendTransaction({ from: accounts[0] }).then(waitReceipt).then(short))
-    // console.log("release storage of sponsored contract and will fail due to out of gas", await contracts.sponsoredContract.setSlots([]).sendTransaction({ from: accounts[0], gas: 22000, storageLimit: 100 }).then(waitReceipt).then(short))
+    console.log("release storage of sponsored contract and will fail due to out of gas", await contracts.sponsoredContract.setSlots([]).sendTransaction({ from: accounts[0], gas: 22000, storageLimit: 100 }).then(waitReceipt).then(short))
     console.log("release storage of sponsored contract and will success", await contracts.sponsoredContract.setSlots([]).sendTransaction({ from: accounts[0], gas: 220000 }).catch(console.error).then(waitReceipt).then(short))
-}
-
-function short(receipt) {
-    const { transactionHash, outcomeStatus, txExecErrorMsg } = receipt
-    return `${transactionHash} ${outcomeStatus == "0x1" ? txExecErrorMsg : "ok"}`
-}
-
-async function waitReceipt(txhash) {
-    while (true) {
-        let receipt = await cfx.getTransactionReceipt(txhash)
-        if (receipt) {
-            return receipt
-        }
-        await new Promise(resolve => setTimeout(resolve, 1000))
-    }
 }
 
 async function stake() {
@@ -193,6 +179,22 @@ async function destroyContract() {
         from: accounts[0].address,
     }).executed();
 }
+
+async function waitReceipt(txhash) {
+    while (true) {
+        let receipt = await cfx.getTransactionReceipt(txhash)
+        if (receipt) {
+            return receipt
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+}
+
+function short(receipt) {
+    const { transactionHash, outcomeStatus, txExecErrorMsg } = receipt
+    return `${transactionHash} ${outcomeStatus == "0x1" ? txExecErrorMsg : "ok"}`
+}
+
 
 process.on('unhandledRejection', (reason, p) => {
     console.log('Unhandled Rejection at: Promise', p, 'reason:', reason)

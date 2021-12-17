@@ -559,15 +559,17 @@ func (ec *Client) getRpcBlock(_blockIdentifier *RosettaTypes.PartialBlockIdentif
 
 		if bockIdtf.Hash != nil {
 			if isContainTxs {
-				sb, err := ec.c.GetBlockSummaryByHash(cfxSdkTypes.Hash(*bockIdtf.Hash))
-				if err != nil {
-					return nil, errors.WithStack(err)
-				}
-				return &cfxSdkTypes.Block{
-					BlockHeader: sb.BlockHeader,
-				}, nil
+				return ec.c.GetBlockByHash(cfxSdkTypes.Hash(*bockIdtf.Hash))
 			}
-			return ec.c.GetBlockByHash(cfxSdkTypes.Hash(*bockIdtf.Hash))
+
+			sb, err := ec.c.GetBlockSummaryByHash(cfxSdkTypes.Hash(*bockIdtf.Hash))
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+			return &cfxSdkTypes.Block{
+				BlockHeader: sb.BlockHeader,
+			}, nil
+
 		}
 
 		blockNum := uint64(*bockIdtf.Index)

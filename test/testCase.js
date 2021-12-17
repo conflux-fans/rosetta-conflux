@@ -5,6 +5,13 @@
 // 4. 调用合约且导致 storage release
 //    1. release 目标地址是代付的
 //    2. release 目标地址是未代付的
+// 5. 内置合约
+//    1. stake/unstake
+//    2. kill 合约
+//    3. 内置合约调用失败
+
+// # 测试结果
+// 1. 调用被赞助的合约且导致 storage release的，estimate gas 有一倍误差
 
 const { Conflux, Contract, format } = require('js-conflux-sdk');
 const { SponsorWhitelistControl } = require('js-conflux-sdk/src/contract/internal')
@@ -29,11 +36,11 @@ const contractAddrs = {
 async function main() {
     try {
         await init();
-        // await transCfxToUser(10);
-        // await transCfxToContract(10);
-        // await invokeContractLeadStorageRelease();
-        // await invokeContractSponsored();
-        // await invokeSpnsoneredContractLeadStorageRelease();
+        await transCfxToUser(10);
+        await transCfxToContract(10);
+        await invokeContractLeadStorageRelease();
+        await invokeContractSponsored();
+        await invokeSpnsoneredContractLeadStorageRelease();
     } catch (e) {
         console.error("error:", e)
     }
@@ -62,7 +69,7 @@ async function deploy() {
     let { contractCreated, epochNumber } = await waitReceipt(ncHash)
     contractAddrs.normalContract = contractCreated
     console.log("deploy normalContract done on epoch", epochNumber)
-    
+
 
     let sc = cfx.Contract({ abi: testTraceMaterial.abi, bytecode: testTraceMaterial.bytecode })
     const scHash = await sc.constructor().sendTransaction({ from: accounts[0].address })
@@ -70,11 +77,10 @@ async function deploy() {
     contractAddrs.sponsoredContract = receipt.contractCreated;
     console.log("deploy sponsoredContract done on epoch", receipt.epochNumber)
     console.log("deploy done", contractAddrs)
-    
+
 
     // accounts1 sponsor for it
     await contracts.sponsorWhitelistControl.setSponsorForGas(contractAddrs.sponsoredContract, 1e15).sendTransaction({ from: accounts[1].address, value: "100000000000000000000" })
-    return
     await contracts.sponsorWhitelistControl.setSponsorForCollateral(contractAddrs.sponsoredContract).sendTransaction({ from: accounts[1].address, value: "100000000000000000000" })
     console.log("sponsor done")
 }
@@ -88,23 +94,29 @@ async function transCfxToUser(count) {
 
 async function transCfxToContract(count) {
     for (let i = 0; i < count; i++) {
-        await cfx.cfx.sendTransaction({ from: accounts[0], to: contracts.normalContract.address, value: 60000 })
+        console.log("send normal tx:", await cfx.cfx.sendTransaction({ from: accounts[0], to: contracts.normalContract.address, value: 60000 }))
     }
     console.log(`transCfxToContract ${count} times done`)
 }
 
 async function invokeContractLeadStorageRelease() {
-    console.log("use storage of normal contract", await contracts.normalContract.setSlots([1, 2, 3, 4]).sendTransaction({ from: accounts[0] }))
-    console.log("release storage of normal contract", await contracts.normalContract.setSlots([]).sendTransaction({ from: accounts[0] }))
+    console.log("use storage of normal contract", await contracts.normalContract.setSlots([1, 2, 3, 4]).sendTransaction({ from: accounts[0] }).then(waitReceipt).then(short))
+    console.log("release storage of normal contract", await contracts.normalContract.setSlots([]).sendTransaction({ from: accounts[0] }).then(waitReceipt).then(short))
 }
 
 async function invokeContractSponsored() {
-    console.log("invoke sponsored contract", await contracts.sponsoredContract.newAndDestoryContract().sendTransaction({ from: accounts[0] }))
+    console.log("invoke sponsored contract", await contracts.sponsoredContract.newAndDestoryContract().sendTransaction({ from: accounts[0] }).then(waitReceipt).then(short))
 }
 
 async function invokeSpnsoneredContractLeadStorageRelease() {
-    console.log("use storage of sponored contract", await contracts.sponsoredContract.setSlots([1, 2, 3, 4]).sendTransaction({ from: accounts[0] }))
-    console.log("release storage of sponsored contract", await contracts.sponsoredContract.setSlots([]).sendTransaction({ from: accounts[0] }))
+    console.log("use storage of sponored contract", await contracts.sponsoredContract.setSlots([1, 2, 3, 4]).sendTransaction({ from: accounts[0] }).then(waitReceipt).then(short))
+    // console.log("release storage of sponsored contract and will fail due to out of gas", await contracts.sponsoredContract.setSlots([]).sendTransaction({ from: accounts[0], gas: 22000, storageLimit: 100 }).then(waitReceipt).then(short))
+    console.log("release storage of sponsored contract and will success", await contracts.sponsoredContract.setSlots([]).sendTransaction({ from: accounts[0], gas: 220000 }).catch(console.error).then(waitReceipt).then(short))
+}
+
+function short(receipt) {
+    const { transactionHash, outcomeStatus, txExecErrorMsg } = receipt
+    return `${transactionHash} ${outcomeStatus == "0x1" ? txExecErrorMsg : "ok"}`
 }
 
 async function waitReceipt(txhash) {

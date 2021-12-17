@@ -8,5 +8,15 @@
             "decimals": 18
         },
         "value": "10000000000000000000000"
-    }   
+    },
+    {
+        "account_identifier": {
+            "address": "net1037:aajjfaapv3p7r0hspp20kdz4e4su00sbr6kdb2jdnn"
+        },
+        "currency": {
+            "symbol": "CFX",
+            "decimals": 18
+        },
+        "value": "10000000000000000000000"  
+    }
 ]

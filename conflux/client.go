@@ -291,28 +291,29 @@ func appendStorageUsedOps(ltx *loadedTransaction, ops []*RosettaTypes.Operation)
 	return ops
 }
 
-// FIXME: 没有release后是否release给sponsor的标志，无法准确生成ops
 func appendStorageRelaseOps(ltx *loadedTransaction, ops []*RosettaTypes.Operation) []*RosettaTypes.Operation {
 	// var ops []*RosettaTypes.Operation
-	// storage release，目标地址是否sponsor，非sponsor，targe地址余额增加；sponsored如何处理？
-	for _, sc := range ltx.Receipt.StorageReleased {
-		// TODO:判断目标地址是否sponsored
-		storageReleaseOp := &RosettaTypes.Operation{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: int64(len(ops)),
-			},
-			Type:   StorageReleaseOpType,
-			Status: RosettaTypes.String(SuccessStatus),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: sc.Address.String(),
-			},
-			Amount: &RosettaTypes.Amount{
-				Value:    StorageFee(uint64(sc.Collaterals)).String(),
-				Currency: Currency,
-			},
+	// storage release，目标地址是否sponsor，非sponsor，targe地址余额增加；sponsored则忽略（只是在内置合约内更新状态）
+	if !ltx.Receipt.StorageCoveredBySponsor {
+		for _, sc := range ltx.Receipt.StorageReleased {
+			storageReleaseOp := &RosettaTypes.Operation{
+				OperationIdentifier: &RosettaTypes.OperationIdentifier{
+					Index: int64(len(ops)),
+				},
+				Type:   StorageReleaseOpType,
+				Status: RosettaTypes.String(SuccessStatus),
+				Account: &RosettaTypes.AccountIdentifier{
+					Address: sc.Address.String(),
+				},
+				Amount: &RosettaTypes.Amount{
+					Value:    StorageFee(uint64(sc.Collaterals)).String(),
+					Currency: Currency,
+				},
+			}
+			// startIdx++
+			ops = append(ops, storageReleaseOp)
+
 		}
-		// startIdx++
-		ops = append(ops, storageReleaseOp)
 	}
 	return ops
 }
@@ -342,11 +343,13 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 			continue
 		}
 
-		if from.GetAddressType() != cfxaddress.AddressTypeBuiltin {
+		isNeedFromOps := from.GetAddressType() != cfxaddress.AddressTypeBuiltin
+		isNeedToOps := to.GetAddressType() != cfxaddress.AddressTypeBuiltin
 
+		if isNeedFromOps {
 			fromOp := &RosettaTypes.Operation{
 				OperationIdentifier: &RosettaTypes.OperationIdentifier{
-					Index: startIndex,
+					Index: startIndex + int64(len(ops)),
 				},
 				Type:   opType,
 				Status: RosettaTypes.String(status),
@@ -362,16 +365,12 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 			ops = append(ops, fromOp)
 		}
 
-		if to.GetAddressType() != cfxaddress.AddressTypeBuiltin {
+		if isNeedToOps {
 			toOp := &RosettaTypes.Operation{
 				OperationIdentifier: &RosettaTypes.OperationIdentifier{
-					Index: startIndex + 1,
+					Index: startIndex + int64(len(ops)),
 				},
-				RelatedOperations: []*RosettaTypes.OperationIdentifier{
-					{
-						Index: startIndex,
-					},
-				},
+
 				Type:   opType,
 				Status: RosettaTypes.String(status),
 				Account: &RosettaTypes.AccountIdentifier{
@@ -384,10 +383,18 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 				Metadata: metadata,
 			}
 
+			if isNeedFromOps {
+				toOp.RelatedOperations = []*RosettaTypes.OperationIdentifier{
+					{
+						Index: startIndex + int64(len(ops)) - 1,
+					},
+				}
+			}
+
 			ops = append(ops, toOp)
 		}
 
-		startIndex += 2
+		// startIndex += 2
 	}
 
 	// FIXME:

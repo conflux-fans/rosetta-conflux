@@ -1,5 +1,8 @@
 cli-data
 .vscode
 # rosetta-cli-conf
-node_modules
 .DS_Store
+.idea
+main
+rosetta-conflux
+node_modules

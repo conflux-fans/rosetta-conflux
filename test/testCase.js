@@ -13,8 +13,10 @@
 // # 测试结果
 // 1. 调用被赞助的合约且导致 storage release的，estimate gas 有一倍误差
 
-const { Conflux, Contract, format } = require('js-conflux-sdk');
+const { Conflux, Contract, format, Drip } = require('js-conflux-sdk');
 const { SponsorWhitelistControl } = require('js-conflux-sdk/src/contract/internal')
+const path = require('path')
+const DestroyableContract = require(path.join(__dirname, './Destroyable.json'));
 const testTraceMaterial = require("/Users/wangdayong/myspace/mytemp/demo-truffle/build/contracts/TestTrace")
 
 const cfx = new Conflux({
@@ -33,14 +35,20 @@ const contractAddrs = {
     sponsoredContract: undefined,
 }
 
+const Staking = cfx.InternalContract('Staking');
+const AdminControl = cfx.InternalContract('AdminControl');
+const SponsorControl = cfx.InternalContract('SponsorWhitelistControl');
+
 async function main() {
     try {
-        await init();
-        await transCfxToUser(10);
-        await transCfxToContract(10);
-        await invokeContractLeadStorageRelease();
-        await invokeContractSponsored();
-        await invokeSpnsoneredContractLeadStorageRelease();
+        // await init();
+        // await transCfxToUser(10);
+        // await transCfxToContract(10);
+        // await invokeContractLeadStorageRelease();
+        // await invokeContractSponsored();
+        // await invokeSpnsoneredContractLeadStorageRelease();
+        // await stake();
+        await unstake();
     } catch (e) {
         console.error("error:", e)
     }
@@ -127,6 +135,65 @@ async function waitReceipt(txhash) {
         }
         await new Promise(resolve => setTimeout(resolve, 1000))
     }
+}
+
+async function stake() {
+  const receipt = await Staking
+    .deposit(Drip.fromCFX(5))
+    .sendTransaction({
+      from: accounts[0].address,
+    }).executed();
+
+  console.log(`Stake result: ${receipt.outcomeStatus == 0 ? 'success' : 'fail'}`);
+  // console.log('Stake receipt: ', receipt);
+}
+
+async function unstake() {
+  const receipt = await Staking
+    .withdraw(Drip.fromCFX(3))
+    .sendTransaction({
+      from: accounts[0].address,
+    })
+    .executed();
+    console.log(`Unstake result: ${receipt.outcomeStatus == 0 ? 'success' : 'fail'}`);
+    // console.log('Unstake receipt: ', receipt);
+}
+
+async function destroyContract() {
+  // deploy contract
+  let contract = cfx.Contract(DestroyableContract);
+  let receipt = await contract.constructor().sendTransaction({
+    from: accounts[0].address,
+  }).executed();
+  console.log(`result: ${receipt.outcomeStatus == 0 ? 'success' : 'fail'}`);
+  console.log(receipt.transactionHash);
+
+  //
+  const address = receipt.contractCreated;
+  contract = cfx.Contract({
+    abi: DestroyableContract.abi,
+    address,
+  });
+  // set sponsor
+  receipt = await SponsorControl.setSponsorForGas(address, 1e15).sendTransaction({
+    from: accounts[1].address,
+    value: Drip.fromCFX(1),
+  }).executed();
+
+  receipt = await SponsorControl.setSponsorForCollateral(address).sendTransaction({
+    from: accounts[1].address,
+    value: Drip.fromCFX(10),
+  }).executed();
+
+  // use storage
+  await contract.setVal(123).sendTransaction({
+    from: accounts[0].address,
+  }).executed();
+
+  // destroy
+  await AdminControl.destroy(address).sendTransaction({
+    from: accounts[0].address,
+  }).executed();
 }
 
 process.on('unhandledRejection', (reason, p) => {

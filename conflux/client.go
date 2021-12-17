@@ -343,8 +343,8 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 			continue
 		}
 
-		isNeedFromOps := from.GetAddressType() != cfxaddress.AddressTypeBuiltin
-		isNeedToOps := to.GetAddressType() != cfxaddress.AddressTypeBuiltin
+		isNeedFromOps := from.GetAddressType() != cfxaddress.AddressTypeBuiltin && from.GetAddressType() != cfxaddress.AddressTypeNull
+		isNeedToOps := to.GetAddressType() != cfxaddress.AddressTypeBuiltin && to.GetAddressType() != cfxaddress.AddressTypeNull
 
 		if isNeedFromOps {
 			fromOp := &RosettaTypes.Operation{

@@ -41,13 +41,13 @@ const SponsorControl = cfx.InternalContract('SponsorWhitelistControl');
 
 async function main() {
     try {
-        // await init();
+        await init();
         // await transCfxToUser(10);
         // await transCfxToContract(10);
         // await invokeContractLeadStorageRelease();
         // await invokeContractSponsored();
         // await invokeSpnsoneredContractLeadStorageRelease();
-        // await stake();
+        await stake();
         await unstake();
     } catch (e) {
         console.error("error:", e)
@@ -59,7 +59,7 @@ async function init() {
     accounts.push(cfx.wallet.addPrivateKey("0xd32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a3686380"));
     accounts.push(cfx.wallet.addPrivateKey("0xe32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a3686381"))
     console.log("accounts", accounts)
-    // return
+    return
 
     contracts.sponsorWhitelistControl = cfx.Contract({ abi: SponsorWhitelistControl.abi, address: format.address(SponsorWhitelistControl.address, cfx.networkId) })
     if (!contractAddrs.normalContract && !contractAddrs.sponsoredContract) {
@@ -138,62 +138,60 @@ async function waitReceipt(txhash) {
 }
 
 async function stake() {
-  const receipt = await Staking
-    .deposit(Drip.fromCFX(5))
-    .sendTransaction({
-      from: accounts[0].address,
-    }).executed();
+    const receipt = await Staking
+        .deposit(Drip.fromCFX(5))
+        .sendTransaction({
+            from: accounts[0].address,
+        }).executed();
 
-  console.log(`Stake result: ${receipt.outcomeStatus == 0 ? 'success' : 'fail'}`);
-  // console.log('Stake receipt: ', receipt);
+    console.log("Stake result:", short(receipt));
 }
 
 async function unstake() {
-  const receipt = await Staking
-    .withdraw(Drip.fromCFX(3))
-    .sendTransaction({
-      from: accounts[0].address,
-    })
-    .executed();
-    console.log(`Unstake result: ${receipt.outcomeStatus == 0 ? 'success' : 'fail'}`);
-    // console.log('Unstake receipt: ', receipt);
+    const receipt = await Staking
+        .withdraw(Drip.fromCFX(3))
+        .sendTransaction({
+            from: accounts[0].address,
+        })
+        .executed();
+    console.log("Unstake result:", short(receipt));
 }
 
 async function destroyContract() {
-  // deploy contract
-  let contract = cfx.Contract(DestroyableContract);
-  let receipt = await contract.constructor().sendTransaction({
-    from: accounts[0].address,
-  }).executed();
-  console.log(`result: ${receipt.outcomeStatus == 0 ? 'success' : 'fail'}`);
-  console.log(receipt.transactionHash);
+    // deploy contract
+    let contract = cfx.Contract(DestroyableContract);
+    let receipt = await contract.constructor().sendTransaction({
+        from: accounts[0].address,
+    }).executed();
+    console.log(`result: ${receipt.outcomeStatus == 0 ? 'success' : 'fail'}`);
+    console.log(receipt.transactionHash);
 
-  //
-  const address = receipt.contractCreated;
-  contract = cfx.Contract({
-    abi: DestroyableContract.abi,
-    address,
-  });
-  // set sponsor
-  receipt = await SponsorControl.setSponsorForGas(address, 1e15).sendTransaction({
-    from: accounts[1].address,
-    value: Drip.fromCFX(1),
-  }).executed();
+    //
+    const address = receipt.contractCreated;
+    contract = cfx.Contract({
+        abi: DestroyableContract.abi,
+        address,
+    });
+    // set sponsor
+    receipt = await SponsorControl.setSponsorForGas(address, 1e15).sendTransaction({
+        from: accounts[1].address,
+        value: Drip.fromCFX(1),
+    }).executed();
 
-  receipt = await SponsorControl.setSponsorForCollateral(address).sendTransaction({
-    from: accounts[1].address,
-    value: Drip.fromCFX(10),
-  }).executed();
+    receipt = await SponsorControl.setSponsorForCollateral(address).sendTransaction({
+        from: accounts[1].address,
+        value: Drip.fromCFX(10),
+    }).executed();
 
-  // use storage
-  await contract.setVal(123).sendTransaction({
-    from: accounts[0].address,
-  }).executed();
+    // use storage
+    await contract.setVal(123).sendTransaction({
+        from: accounts[0].address,
+    }).executed();
 
-  // destroy
-  await AdminControl.destroy(address).sendTransaction({
-    from: accounts[0].address,
-  }).executed();
+    // destroy
+    await AdminControl.destroy(address).sendTransaction({
+        from: accounts[0].address,
+    }).executed();
 }
 
 process.on('unhandledRejection', (reason, p) => {

@@ -1,0 +1,55 @@
+{
+  "abi": [
+    {
+      "inputs": [],
+      "name": "alwaysFail",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "receiver",
+          "type": "address"
+        }
+      ],
+      "name": "destroy",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_val",
+          "type": "uint256"
+        }
+      ],
+      "name": "setVal",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "val",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "stateMutability": "payable",
+      "type": "receive"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b5061012c806100206000396000f3fe608060405260043610603c5760003560e01c8062f55d9d1460475780631a3528511460785780633c6bb43614608a5780633d4197f01460ae576042565b36604257005b600080fd5b348015605257600080fd5b50607660048036036020811015606757600080fd5b50356001600160a01b031660d4565b005b348015608357600080fd5b50607660e1565b348015609557600080fd5b50609c60eb565b60408051918252519081900360200190f35b34801560b957600080fd5b5060766004803603602081101560ce57600080fd5b503560f1565b806001600160a01b038116ff5b6003600090815580fd5b60005481565b60005556fea2646970667358221220d683ab199dcbe86ee6eb6291a1e3420f36adc42459496d53a24542fdf33f8d0864736f6c63430007060033"
+}

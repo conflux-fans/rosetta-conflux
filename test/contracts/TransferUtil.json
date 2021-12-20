@@ -1,0 +1,27 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "a",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "transfer",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "stateMutability": "payable",
+      "type": "receive"
+    }
+  ],
+  "bytecode": "0x608060405234801561001057600080fd5b5060c88061001f6000396000f3fe608060405260043610601f5760003560e01c8063a9059cbb14602a576025565b36602557005b600080fd5b605360048036036040811015603e57600080fd5b506001600160a01b0381351690602001356055565b005b60405182906001600160a01b0382169083156108fc029084906000818181858888f19350505050158015608c573d6000803e3d6000fd5b5050505056fea2646970667358221220634873284c95350105b1ef910cc130e6b8af05073719f80ed25f11612ced064f64736f6c63430007060033"
+}

@@ -17,8 +17,10 @@
 const { Conflux, Contract, format, Drip } = require('js-conflux-sdk');
 const { SponsorWhitelistControl } = require('js-conflux-sdk/src/contract/internal')
 const path = require('path')
-const DestroyableContract = require(path.join(__dirname, './Destroyable.json'));
-const testTraceMaterial = require("/Users/wangdayong/myspace/mytemp/demo-truffle/build/contracts/TestTrace")
+// const testTraceMaterial = require("/Users/wangdayong/myspace/mytemp/demo-truffle/build/contracts/TestTrace")
+const DestroyableContractMeta = require(path.join(__dirname, './contracts/Destroyable.json'));
+const EmptyContractMeta = require(path.join(__dirname, './contracts/Empty.json'));
+const TransferUtilMeta = require(path.join(__dirname, './contracts/TransferUtil.json'));
 
 const cfx = new Conflux({
     url: 'http://127.0.0.1:12537',
@@ -50,6 +52,7 @@ async function main() {
         await invokeSpnsoneredContractLeadStorageRelease();
         await stake();
         await unstake();
+        // await internalTransferCfx();
     } catch (e) {
         console.error("error:", e)
     }
@@ -145,7 +148,7 @@ async function unstake() {
 
 async function destroyContract() {
     // deploy contract
-    let contract = cfx.Contract(DestroyableContract);
+    let contract = cfx.Contract(DestroyableContractMeta);
     let receipt = await contract.constructor().sendTransaction({
         from: accounts[0].address,
     }).executed();
@@ -155,7 +158,7 @@ async function destroyContract() {
     //
     const address = receipt.contractCreated;
     contract = cfx.Contract({
-        abi: DestroyableContract.abi,
+        abi: DestroyableContractMeta.abi,
         address,
     });
     // set sponsor
@@ -178,6 +181,51 @@ async function destroyContract() {
     await AdminControl.destroy(address).sendTransaction({
         from: accounts[0].address,
     }).executed();
+}
+
+async function deployInternalTransferContracts() {
+  console.log('Deploying TransferUtil...');
+  const transferReceipt = await cfx.Contract(TransferUtilMeta).constructor().sendTransaction({
+    from: accounts[0].address,
+  }).executed();
+
+  console.log('Deploying Destroyable...');
+  const destroyableReceipt = await cfx.Contract(DestroyableContractMeta).constructor().sendTransaction({
+    from: accounts[0].address,
+  }).executed();
+
+  console.log('Deploying Empty...');
+  const emptyReceipt = await cfx.Contract(EmptyContractMeta).constructor().sendTransaction({
+    from: accounts[0].address,
+  }).executed();
+
+  return {
+    emptyContract: emptyReceipt.contractCreated,
+    transferContract: transferReceipt.contractCreated,
+    destroyableContract: destroyableReceipt.contractCreated,
+  }
+}
+
+async function internalTransferCfx() {
+  let addresses = await deployInternalTransferContracts();
+  let transferContract = cfx.Contract({
+    address: addresses.transferContract,
+    abi: TransferUtilMeta.abi,
+  });
+
+  let receipt = await transferContract.transfer(addresses.destroyableContract, Drip.fromCFX(1)).sendTransaction({
+    from: accounts[0].address,
+    value: Drip.fromCFX(1),
+  }).executed();
+  console.log('Internal transfer', receipt.outcomeStatus == 0 ? 'success' : 'fail', receipt.transactionHash);
+
+  receipt = await transferContract.transfer(addresses.emptyContract, Drip.fromCFX(1)).sendTransaction({
+    gas: 500000,
+    storageLimit: 100,
+    from: accounts[0].address,
+    value: Drip.fromCFX(1),
+  }).executed();
+  console.log('Internal transfer', receipt.outcomeStatus == 0 ? 'success' : 'fail');
 }
 
 async function waitReceipt(txhash) {

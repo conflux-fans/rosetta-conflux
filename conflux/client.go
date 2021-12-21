@@ -293,28 +293,30 @@ func appendStorageUsedOps(ltx *loadedTransaction, ops []*RosettaTypes.Operation)
 
 func appendStorageRelaseOps(ltx *loadedTransaction, ops []*RosettaTypes.Operation) []*RosettaTypes.Operation {
 	// var ops []*RosettaTypes.Operation
-	// storage release，目标地址是否sponsor，非sponsor，targe地址余额增加；sponsored则忽略（只是在内置合约内更新状态）
-	if !ltx.Receipt.StorageCoveredBySponsor {
-		for _, sc := range ltx.Receipt.StorageReleased {
-			storageReleaseOp := &RosettaTypes.Operation{
-				OperationIdentifier: &RosettaTypes.OperationIdentifier{
-					Index: int64(len(ops)),
-				},
-				Type:   StorageReleaseOpType,
-				Status: RosettaTypes.String(SuccessStatus),
-				Account: &RosettaTypes.AccountIdentifier{
-					Address: sc.Address.String(),
-				},
-				Amount: &RosettaTypes.Amount{
-					Value:    StorageFee(uint64(sc.Collaterals)).String(),
-					Currency: Currency,
-				},
-			}
-			// startIdx++
-			ops = append(ops, storageReleaseOp)
+	// storage release，目标地址是否是合约本身，如果是合约本身表示返还给的是sponsor balance（只是更新sponsor内置合约内状态），目标地址余额不增加；反之，表示非代付，则targe地址余额增加
 
+	for _, sc := range ltx.Receipt.StorageReleased {
+		if sc.Address.Equals(ltx.Receipt.To) {
+			continue
 		}
+
+		storageReleaseOp := &RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: int64(len(ops)),
+			},
+			Type:   StorageReleaseOpType,
+			Status: RosettaTypes.String(SuccessStatus),
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: sc.Address.String(),
+			},
+			Amount: &RosettaTypes.Amount{
+				Value:    StorageFee(uint64(sc.Collaterals)).String(),
+				Currency: Currency,
+			},
+		}
+		ops = append(ops, storageReleaseOp)
 	}
+
 	return ops
 }
 

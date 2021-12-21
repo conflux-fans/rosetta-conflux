@@ -1,0 +1,81 @@
+accounts [
+  PrivateKeyAccount {
+    address: 'cfxtest:aap9kthvctunvf030rbkk9k7zbzyz12dajp1u3sp4g',
+    publicKey: '0xef54697b83796964be895c809138942e4d17498eb9c77a12043e043ae3bff95b5fb75fd374ab72e068dd93c9f3bb5c1a9d3e05c0ed74b0ae55c45d406718dd2a',
+    privateKey: '0x2139fb4c55cb9af7f0086cd800962c2e9013e2292bae77978a9209e3bee71d49',
+    networkId: 1
+  },
+  PrivateKeyAccount {
+    address: 'cfxtest:aapgctttjzecxesu9n02t54124dr00zf3ps3vx7d7c',
+    publicKey: '0x95df0125de526a057ee142bb61bc5ee77988954167a4b936d2c8bc337153527eba563c0d32abf8884f880d9ac5e6a5847730bb135143ceca64182114093ac942',
+    privateKey: '0xf32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a3686380',
+    networkId: 1
+  },
+  PrivateKeyAccount {
+    address: 'cfxtest:aar3fwks74ggphxp5ftbvrsa8hngbs6e6jhsxfskya',
+    publicKey: '0x62ae2bca29771fdb310f1f868208c81ec68a2fbe8f278fe8a70072e748b8dba019d9d82dd253d3d4c06eccfd2ab91345e103ced76ce959857e08904114ec069d',
+    privateKey: '0xe32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a3686381',
+    networkId: 1
+  }
+]
+deploy normalContract done on epoch 56736596
+deploy sponsoredContract done on epoch 56736603
+sponsor gas for sponsoredContract done 0x8fa5dfea4f716eaf2aaca899608c7818ec0739a8179007ea8bb2f0b2b41c5abb
+sponsor storage for sponsoredContract done 0x7a8dd3b7caf8a10e630b72846b81c48c91c6ae61e25c8b09384a3b3346f486fb
+deploy sponsoredUnaffordContract done on epoch 56736613
+sponsor gas for sponsoredUnaffordContract 0xb25bab8f8658847f9e95949fea2412ea5826475d874894f893d386fb27b43b64 ok
+sponsor storage for sponsoredUnaffordContract 0x24547aa34e5f6a6d86a93f2865c16f03fa64fa1bcdf9fdd0b7e3fb50e9afb911 ok
+deploy contract for testing destroy sponsored contract done on epoch 56736641
+sponsor gas for destroyContract done 0x70b05cf8892b390729ec170ebc945160c24385713d85f30e5443be79cb7e06ce
+sponsor storage for destroyContract done 0xa14d61680f6dea6f7da45fb52c502ad89ab73f1a5fba7ad23a606a2cbd9d1cf8
+init done
+
+sponsor state of cfxtest:acfskh3z8kj6cdmun3wfrg0b697jjdsb02esafrmjy 1000000000n 312500000000000000n
+send normal tx: 0xcc5f42390e2eb54ea06b4615b21bffe44308a60f2ea44aab8bf635b25340b1ae ok
+send normal tx: 0xa74ccb81d2cef19942027c60d6d1e2ffb109c5da5544f4aabc0ddde26c35a553 ok
+transCfxToUser 2 times done
+
+send cfx to normal contract: 0xf675da07e26a141e445ac2f2ba169e1b41e2d86f6364ce2686bba778b0fb5cee VmError(OutOfGas)
+send cfx to normal contract: 0x92e3c0966f1bddf7bed3c9a1cb91f578b7baccd4406529c274b970ddbf6f0a3e VmError(OutOfGas)
+transCfxToContract 2 times done
+
+send cfx to internal contract: 0x4ca714e92ee74778644606d9f0ebc9fa1cf16f52a598268f75598c6d9af82f72 VmError(InternalContract("ABI decode error: Incomplete function signature"))
+send cfx to internal contract: 0x021c69a857e57097220ffbb51702d5d7f815277096f17d84418c17fec3ed060f VmError(InternalContract("ABI decode error: Incomplete function signature"))
+transCfxToInternalContract 2 times done
+
+send cfx to null address: 0xda10d5c8c654f0736fede20ab65b37c14de6fe57dde1c710fad37be2366a02aa ok
+send cfx to null address: 0x936c1821112df6c0748fdd0d46c5dbfd756b480ede67956c7d02daa312d43b44 ok
+transCfxToNullAddress 2 times done
+
+
+use storage of normal contract 0x7f0242f093731686a06bb9dd2cf2673973cd1ec55bf6d28aaecfb657498beaaf ok
+release storage of normal contract 0xee914b206b23865f52069d9c18fa04c49e9ef4d7452b942408bd9922e05f1a12 ok
+
+invoke sponsored contract 0xa7ef6fcce21dfca250d403c6e855a79ab9c66602684492c379956e73bb76baa6 ok
+
+use storage of sponored contract 0x35c8afef477dd137bffb7024ba611f22f41360d4e51ebc9069638a980cafdf58 ok
+release storage of sponsored contract and will success 0xd0a36be8939baee4c0a202683b12d7aa911116be7ddfec8addb3e1e8cc4387ad ok
+sponsor state of cfxtest:acfskh3z8kj6cdmun3wfrg0b697jjdsb02esafrmjy 1000000000n 312500000000000000n
+
+use storage and gas of sponored un-afford contract which can afford both gas and storage 0xa13a13495a0af54ecd0dbbc709a3cdf5d677e3a3654871db971fdec8288d905a ok storageCollateralized: 320, storageCoveredBySponsor: true, gasCoveredBySponsor: true, gasFee: 49164
+sponsor state of cfxtest:acfskh3z8kj6cdmun3wfrg0b697jjdsb02esafrmjy 999950836n 0n
+use storage and gas of sponored un-afford contract which can afford gas but not storage 0x04d5eae4bc409e49dde765f2bd79983973f4712ab60a7e5bb86c49b9cf6715bf ok storageCollateralized: 320, storageCoveredBySponsor: false, gasCoveredBySponsor: true, gasFee: 70564
+release storage 0x10511d6ca3ee91b4ab23219b0fcca62afbaf991cc8670d3e74a6e5ca3db29660 ok
+sponsor state of cfxtest:acfskh3z8kj6cdmun3wfrg0b697jjdsb02esafrmjy 999812223n 312500000000000000n
+use storage and gas of sponored un-afford contract which can afford storage but not gas 0xab6a03badf3acb5bf3d5e618b26d25a892e62f7f259f4e9076d79f297c4a2a95 ok storageCollateralized: 320, storageCoveredBySponsor: true, gasCoveredBySponsor: false, gasFee: 491640000
+sponsor state of cfxtest:acfskh3z8kj6cdmun3wfrg0b697jjdsb02esafrmjy 999812223n 0n
+use storage and gas of sponored un-afford contract which un-afford both 0x00f74514cf9ca4f319a26d4e4750ae324c906b9bae3625736d8d5562845ff316 ok storageCollateralized: 320, storageCoveredBySponsor: false, gasCoveredBySponsor: false, gasFee: 705640000
+
+replace gas sponsor for sponsoredContract done 0x32d4dd5f999a5d3c93433c29598663c40c538e07c11004e90172dac34af7b9c4
+replace storage sponsor for sponsoredContract done 0x552c8d6862dcc380e5f5c4984c571a167507ca3342be2cc2912db13d5d3b9eac
+
+Stake result 0x36ffcce77021409e8d8814aca886a9ac0f717de44904b1cff3ce5268612aa811 ok
+Unstake result 0x349dd133981b89b55ac571b7a482ccceb83dbf00e66da997d507043d29b9a83c ok
+
+Internal transfer success 0xbe940dc803b8968c8809b3d4b982fe2fc861113d2cd5699b76621c30cb82f816 ok
+Internal transfer fail 0x978fd85e61d3b69b73d4619c157a519ce22948c105a0c4c534668205159892e7 ok
+
+use storage of sponored contract 0x3d9c1483542d1a48541e077ac38fffee5462a6e5b85c8ae916d89c15449d7a58 ok
+release storage of sponsored contract and will fail due to out of gas 0x325698d0393cd534ae0875dda5a48e3a2f7703c4c80f3e6107edbc529b8576a2 VmError(OutOfGas)
+
+destroy sponsored contract 0xb882272b1b4832424b61ff91595a3217a62811aebeed4e29a60a5b5466079e7c ok

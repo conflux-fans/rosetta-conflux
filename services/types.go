@@ -19,6 +19,9 @@ type Client interface {
 		error,
 	)
 
+	NetworkID() (uint32, error)
+	ChainID() (uint32, error)
+
 	Block(
 		context.Context,
 		*types.PartialBlockIdentifier,

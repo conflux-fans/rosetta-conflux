@@ -22,10 +22,12 @@ import (
 	"strconv"
 
 	"github.com/Conflux-Chain/go-conflux-sdk/types/cfxaddress"
+	"github.com/Conflux-Chain/go-conflux-sdk/utils/addressutil"
 	"github.com/conflux-fans/rosetta-conflux/common"
 	"github.com/conflux-fans/rosetta-conflux/configuration"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/sirupsen/logrus"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -61,14 +63,14 @@ func (s *ConstructionAPIService) ConstructionDerive(
 		return nil, wrapErr(ErrUnableToDecompressPubkey, err)
 	}
 
-	addr := crypto.PubkeyToAddress(*pubkey)
+	ethAddr := crypto.PubkeyToAddress(*pubkey)
 
-	networkId, err := strconv.Atoi(request.NetworkIdentifier.Network)
+	networkId, err := s.client.NetworkID()
 	if err != nil {
 		return nil, wrapErr(ErrUnrecognizedNetwork, err)
 	}
 
-	cfxAddr := cfxaddress.MustNewFromCommon(addr, uint32(networkId))
+	cfxAddr := addressutil.EtherAddressToCfxAddress(ethAddr, false, networkId)
 	return &types.ConstructionDeriveResponse{
 		AccountIdentifier: &types.AccountIdentifier{
 			Address: cfxAddr.String(),
@@ -243,12 +245,16 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 	}
 
+	chainID, err := s.client.ChainID()
+	if err := common.UnmarshalMap(request.Metadata, &metadata); err != nil {
+		return nil, wrapErr(ErrGeth, err)
+	}
 	// Required Fields for constructing a real Ethereum transaction
 	toOp, amount := matches[1].First()
 	toAdd := toOp.Account.Address
 	nonce := metadata.Nonce
 	gasPrice := metadata.GasPrice
-	chainID := s.config.Params.ChainID
+
 	transferGasLimit := uint64(conflux.TransferGasLimit)
 	transferStorageLimit := uint64(conflux.TransferStorageLimit)
 	transferData := []byte{}
@@ -278,7 +284,7 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 			Value:        (*hexutil.Big)(amount),
 			StorageLimit: cfxSdkTypes.NewUint64(transferStorageLimit),
 			EpochHeight:  cfxSdkTypes.NewUint64(metadata.EpochHeight),
-			ChainID:      cfxSdkTypes.NewUint(uint(chainID.Uint64())),
+			ChainID:      cfxSdkTypes.NewUint(uint(chainID)),
 		},
 		To:   &checkTo,
 		Data: transferData,
@@ -342,14 +348,14 @@ func (s *ConstructionAPIService) ConstructionHash(
 		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 	}
 
-	hash, err := signedTx.Hash()
+	txhash, err := signedTx.Hash()
 	if err != nil {
 		return nil, wrapErr(ErrgGetTxHash, err)
 	}
 
 	return &types.TransactionIdentifierResponse{
 		TransactionIdentifier: &types.TransactionIdentifier{
-			Hash: new(big.Int).SetBytes(hash).String(),
+			Hash: hexutil.Bytes(txhash).String(),
 		},
 	}, nil
 }
@@ -359,7 +365,6 @@ func (s *ConstructionAPIService) ConstructionParse(
 	ctx context.Context,
 	request *types.ConstructionParseRequest,
 ) (*types.ConstructionParseResponse, *types.Error) {
-
 	utx := cfxSdkTypes.UnsignedTransaction{}
 	if !request.Signed {
 		err := json.Unmarshal([]byte(request.Transaction), &utx)
@@ -369,11 +374,16 @@ func (s *ConstructionAPIService) ConstructionParse(
 	} else {
 		tx := cfxSdkTypes.SignedTransaction{}
 		err := json.Unmarshal([]byte(request.Transaction), &tx)
+		logrus.Debugf("request.Transaction %v\n", request.Transaction)
 		if err != nil {
 			return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 		}
 
-		chainID := uint32(s.config.Params.ChainID.Uint64())
+		chainID, err := s.client.ChainID()
+		if err != nil {
+			return nil, wrapErr(ErrGeth, err)
+		}
+
 		from, err := tx.Sender(chainID)
 		if err != nil {
 			return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
@@ -418,9 +428,10 @@ func (s *ConstructionAPIService) ConstructionParse(
 	}
 
 	metadata := &parseMetadata{
-		Nonce:    utx.Nonce.ToInt().Uint64(),
-		GasPrice: utx.GasPrice.ToInt(),
-		ChainID:  big.NewInt(int64(*utx.ChainID)),
+		Nonce:       utx.Nonce.ToInt().Uint64(),
+		GasPrice:    utx.GasPrice.ToInt(),
+		ChainID:     big.NewInt(int64(*utx.ChainID)),
+		EpochHeight: uint64(*utx.EpochHeight),
 	}
 	metaMap, err := common.MarshalToMap(metadata)
 	if err != nil {
@@ -462,6 +473,9 @@ func (s *ConstructionAPIService) ConstructionSubmit(
 	if err != nil {
 		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 	}
+
+	_txhash, _err := tx.Hash()
+	fmt.Printf("tx hash %x error %v\n", _txhash, _err)
 
 	if err := s.client.SendTransaction(ctx, &tx); err != nil {
 		return nil, wrapErr(ErrBroadcastFailed, err)

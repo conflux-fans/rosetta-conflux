@@ -107,7 +107,7 @@ func LoadConfiguration() (*Configuration, error) {
 			Network:    conflux.MainnetNetwork,
 		}
 		config.GenesisBlockIdentifier = conflux.MainnetGenesisBlockIdentifier
-		// config.Params = params.MainnetChainConfig
+		config.Params = MainnetChainConfig
 		// config.GethArguments = ethereum.MainnetGethArguments
 	case Testnet:
 		config.Network = &types.NetworkIdentifier{
@@ -115,11 +115,12 @@ func LoadConfiguration() (*Configuration, error) {
 			Network:    conflux.TestnetNetwork,
 		}
 		config.GenesisBlockIdentifier = conflux.TestnetGenesisBlockIdentifier
-		// config.Params = params.RopstenChainConfig
+		config.Params = TestnetChainConfig
 		// config.GethArguments = ethereum.RopstenGethArguments
 	case "":
 		return nil, errors.New("NETWORK must be populated")
 	default:
+		
 		return nil, fmt.Errorf("%s is not a valid network", networkValue)
 	}
 

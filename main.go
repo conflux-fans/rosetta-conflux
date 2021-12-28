@@ -19,12 +19,24 @@ import (
 
 	"github.com/conflux-fans/rosetta-conflux/cmd"
 	"github.com/fatih/color"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
+	setLog()
 	err := cmd.Execute()
 	if err != nil {
 		color.Red(err.Error())
 		os.Exit(1)
 	}
+}
+
+func setLog() {
+	logLevels := map[string]logrus.Level{
+		"INFO":  logrus.InfoLevel,
+		"DEBUG": logrus.DebugLevel,
+		"TRACE": logrus.TraceLevel,
+	}
+
+	logrus.SetLevel(logLevels[os.Getenv("LOG")])
 }

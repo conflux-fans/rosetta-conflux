@@ -55,6 +55,14 @@ func (ec *Client) Status(_ context.Context) (*RosettaTypes.BlockIdentifier, int6
 		nil
 }
 
+func (ec *Client) NetworkID() (uint32, error) {
+	return ec.c.GetNetworkID()
+}
+
+func (ec *Client) ChainID() (uint32, error) {
+	return ec.c.GetChainID()
+}
+
 func (ec *Client) Block(ctx context.Context, blockIdentifier *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.Block, error) {
 	return ec.getParsedBlock(ctx, blockIdentifier)
 }
@@ -334,11 +342,15 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 	flattened := tree.Flatten()
 	for _, trace := range flattened {
 		from, to, opType, value, status, err := getOpElems(*trace)
-		metadata := getOpMetadata(*trace)
-
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
+
+		if status == FailureStatus {
+			continue
+		}
+
+		metadata := getOpMetadata(*trace)
 
 		// if call and value is 0 skip
 		if trace.Type == cfxSdkTypes.CALL_TYPE && value.Cmp(big.NewInt(0)) == 0 {
@@ -634,6 +646,7 @@ type loadedTransaction struct {
 	Receipt *cfxSdkTypes.TransactionReceipt
 }
 
+// TODO: according to transaction execution order in epoch to update balance
 func (ec *Client) Balance(ctx context.Context,
 	account *RosettaTypes.AccountIdentifier,
 	block *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.AccountBalanceResponse, error) {
@@ -644,6 +657,7 @@ func (ec *Client) Balance(ctx context.Context,
 		return nil, errors.Wrap(err, "failed to get raw block by rpc")
 	}
 
+	// TODO
 	// get account balance
 	// 1. get pre epoch balance
 	// 2. iterate all transactions in till this block of this epoch

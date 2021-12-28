@@ -16,6 +16,8 @@
 //    2. 转cfx失败
 // 9. 替换合约的sponsor
 // 10. pos reward
+// 11. gas 返还的情况
+// 12. 合约调用外层失败内层成功
 
 // TODO: 
 // 1. 在多节点环境下测试
@@ -23,7 +25,7 @@
 
 // # 发现的问题
 // 1. 调用被赞助的合约且导致 storage release的，estimate gas 有一倍误差 （未复现）
-// 2. 调用被赞助的合约且失败时，receipt中 gas/storage 是否被赞助的信息是错误的 （full node bug CIP-78)
+// 2. 调用被赞助的合约且失败时，receipt中 gas/storage 是否被赞助的信息是错误的 （full node bug CIP-78，辰星修改后在trace中体现)
 // 3. 被赞助的合约销毁时，gas/storage 返还没有在 trace 中提现
 // 4. 合约有先使用存储又释放存储的操作时，存储抵押预估值为整体使用的值；实际应该为使用的最大值
 // 5. js-conflux-sdk 给合约转账不estimte
@@ -32,13 +34,13 @@ const { Conflux, Contract, format, Drip } = require('js-conflux-sdk');
 const config = require('./config')
 const path = require('path')
 const fs = require('fs')
-const TestRosettaMeta = require(path.join(__dirname, './contracts/TestRosetta.json'));
+const TestRosettaMeta = require(path.join(__dirname, './build/contracts/TestRosetta.json'));
 const cfx = new Conflux({
-    // url: 'http://127.0.0.1:12537',
-    // networkId: 1037,
+    url: 'http://127.0.0.1:12537',
+    networkId: 1037,
 
-    url: 'https://test.confluxrpc.com',
-    networkId: 1,
+    // url: 'https://test.confluxrpc.com',
+    // networkId: 1,
 
     // logger: console, // for debug
 });
@@ -65,18 +67,20 @@ const SponsorControl = cfx.InternalContract('SponsorWhitelistControl');
 async function main() {
     try {
         await init();
-        await showSponsorState(contractAddrs.sponsoredUnaffordContract);
-        await transCfxToUser(2);
-        await transCfxToContract(2);
-        await transCfxToInternalContract(2);
-        await transCfxToNullAddress(2);
-        await invokeContractLeadStorageRelease();
-        await invokeContractSponsored();
-        await invokeSpnsoneredContractLeadStorageRelease();
-        await invokeSponsoredUnaffordContract();
-        await replaceSponsor();
-        await stakeUnstake();
+        // await showSponsorState(contractAddrs.sponsoredUnaffordContract);
+        // await transCfxToUser(2);
+        // await transCfxToContract(2);
+        // await transCfxToInternalContract(2);
+        // await transCfxToNullAddress(2);
+        // await invokeContractLeadStorageRelease();
+        // await invokeContractSponsored();
+        // await invokeSpnsoneredContractLeadStorageRelease();
+        // await invokeSponsoredUnaffordContract();
+        // await replaceSponsor();
+        // await stakeUnstake();
         await internalTransferCfx();
+        await gasRefund();
+        return
 
 
         // TODO: wait full-node fix cip-78
@@ -90,9 +94,9 @@ async function main() {
 }
 
 async function init() {
-    accounts.push(cfx.wallet.addPrivateKey("0x1139FB4C55CB9AF7F0086CD800962C2E9013E2292BAE77978A9209E3BEE71D49"));
-    accounts.push(cfx.wallet.addPrivateKey("0xf32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a3686380"));
-    accounts.push(cfx.wallet.addPrivateKey("0xe32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a3686381"));
+    accounts.push(cfx.wallet.addPrivateKey("0xa32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a368638a"));
+    accounts.push(cfx.wallet.addPrivateKey("0xb32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a368638b"));
+    accounts.push(cfx.wallet.addPrivateKey("0xc32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a368638c"));
 
     let getBalances = accounts.map(a => cfx.getBalance(a.address));
     let balances = await Promise.all(getBalances);
@@ -248,6 +252,10 @@ async function internalTransferCfx() {
 
     receipt = await contracts.normalContract.mustInternalFail().sendTransaction({ from: accounts[0].address }).executed();
     console.log('Internal transfer fail', shortReceipt(receipt));
+}
+
+async function gasRefund(count) {
+    console.log("send normal tx and will lead gas refund:", await cfx.cfx.sendTransaction({ from: accounts[1], to: accounts[2].address, value: 10, gas: 30000 }).then(waitReceipt).then(shortReceipt))
 }
 
 

@@ -68,7 +68,12 @@ contract TestRosetta {
         (bool callResult, ) = address(a).call(
             abi.encodeWithSignature("mustRevert()")
         );
-        (callResult, ) = address(a).call{value: 1 ether}(
+        emit InteralCalled(callResult);
+    }
+
+    function mustInternalFailBecasueOfBalance() public {
+        TestTraceA a = new TestTraceA();
+        (bool callResult, ) = address(a).call{value: 1 ether}(
             abi.encodeWithSignature("mustRevert()")
         );
         emit InteralCalled(callResult);

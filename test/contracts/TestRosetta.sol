@@ -6,6 +6,12 @@ contract TestTraceA {
     function callB(TestTraceB b) public {
         b.foo();
     }
+
+    function mustRevert() public {
+        revert();
+    }
+
+    function mustOk() public payable {}
 }
 
 contract TestTraceB {
@@ -19,6 +25,8 @@ contract TestTraceB {
 }
 
 contract TestRosetta {
+    event InteralCalled(bool success);
+
     constructor() {
         address[] memory whitelist = new address[](1);
         whitelist[0] = address(0);
@@ -49,9 +57,29 @@ contract TestRosetta {
         selfdestruct(target);
     }
 
-    function transferCfx(address a, uint amount) public payable {
+    function transferCfx(address a, uint256 amount) public payable {
         address payable target = payable(a);
         //maybe fail but not revert
         target.send(amount);
+    }
+
+    function mustInternalFail() public {
+        TestTraceA a = new TestTraceA();
+        (bool callResult, ) = address(a).call(
+            abi.encodeWithSignature("mustRevert()")
+        );
+        (callResult, ) = address(a).call{value: 1 ether}(
+            abi.encodeWithSignature("mustRevert()")
+        );
+        emit InteralCalled(callResult);
+    }
+
+    function mustInternalOk() public payable {
+        require(msg.value >= 1 ether, "must pay at least 1 ether");
+        TestTraceA a = new TestTraceA();
+        (bool callResult, ) = address(a).call{value: 1 ether}(
+            abi.encodeWithSignature("mustOk()")
+        );
+        emit InteralCalled(callResult);
     }
 }

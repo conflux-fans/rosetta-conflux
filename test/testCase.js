@@ -90,10 +90,14 @@ async function main() {
 }
 
 async function init() {
-    accounts.push(cfx.wallet.addPrivateKey("0x2139FB4C55CB9AF7F0086CD800962C2E9013E2292BAE77978A9209E3BEE71D49"));
+    accounts.push(cfx.wallet.addPrivateKey("0x1139FB4C55CB9AF7F0086CD800962C2E9013E2292BAE77978A9209E3BEE71D49"));
     accounts.push(cfx.wallet.addPrivateKey("0xf32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a3686380"));
     accounts.push(cfx.wallet.addPrivateKey("0xe32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a3686381"));
-    console.log("accounts", accounts)
+
+    let getBalances = accounts.map(a => cfx.getBalance(a.address));
+    let balances = await Promise.all(getBalances);
+
+    console.log("accounts", accounts.map(a => a.address), balances)
     // return
     await deploy();
 
@@ -239,11 +243,10 @@ async function stakeUnstake() {
 }
 
 async function internalTransferCfx() {
-    let receipt = await contracts.normalContract.transferCfx(accounts[1].address, Drip.fromCFX(1)).sendTransaction({ from: accounts[0].address, value: Drip.fromCFX(1) }).executed();
+    let receipt = await contracts.normalContract.mustInternalOk().sendTransaction({ from: accounts[0].address, value: Drip.fromCFX(1) }).executed();
     console.log('\nInternal transfer success', shortReceipt(receipt));
 
-    // transfer 10 cfx, but only pay 1 cfx, it must be failed in internal send and no trace occur, but tx will be success
-    receipt = await contracts.normalContract.transferCfx(accounts[1].address, Drip.fromCFX(10)).sendTransaction({ from: accounts[0].address, value: Drip.fromCFX(1), }).executed();
+    receipt = await contracts.normalContract.mustInternalFail().sendTransaction({ from: accounts[0].address }).executed();
     console.log('Internal transfer fail', shortReceipt(receipt));
 }
 

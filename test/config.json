@@ -1,8 +1,8 @@
 {
   "1": {
-    "normalContract": "cfxtest:accfe4udnb8775hv5rsxdgt4zxezvmppc2ztg35xk7",
-    "sponsoredContract": "cfxtest:acbatgt5rx9xzwtyatuz1kpckdvd0snsxj88mwz4z8",
-    "sponsoredUnaffordContract": "cfxtest:acfskh3z8kj6cdmun3wfrg0b697jjdsb02esafrmjy",
-    "destroyContract": "cfxtest:acebbhe456vfx67gs0xjurksy0n1240g16sngsdgzd"
+    "normalContract": "cfxtest:acampd5681bf75n6jwyunkxf04168jkzjeh7tahg58",
+    "sponsoredContract": "cfxtest:acckwuryd21yfjj27u62e65vn61vcej2t2yh0ddmpw",
+    "sponsoredUnaffordContract": "cfxtest:accye0d5rupb92m1xcjsyyxamn5dwzbm4uk9t43vts",
+    "destroyContract": "cfxtest:acbgnfye6am03e3mjca10gejnpbu3vv3hynrvkjunw"
   }
 }

@@ -3,7 +3,7 @@
         "blockchain": "Conflux",
         "network": "Mainnet"
     },
-    "online_url": "http://localhost:8181",
+    "online_url": "http://localhost:8080",
     "data_directory": "cli-data",
     "http_timeout": 300,
     "max_retries": 15,
@@ -12,6 +12,15 @@
     "tip_delay": 120,
     "compression_disabled": true,
     "memory_limit_disabled": true,
+    "construction": {
+        "stale_depth": 10,
+        "broadcast_limit": 5,
+        "constructor_dsl_file": "conflux.ros",
+        "end_conditions": {
+            "create_account": 10,
+            "transfer": 20
+        }
+    },
     "data": {
         "initial_balance_fetch_disabled": true,
         "active_reconciliation_concurrency": 32,

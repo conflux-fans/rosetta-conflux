@@ -67,25 +67,22 @@ const SponsorControl = cfx.InternalContract('SponsorWhitelistControl');
 async function main() {
     try {
         await init();
-        // await showSponsorState(contractAddrs.sponsoredUnaffordContract);
-        // await transCfxToUser(2);
-        // await transCfxToContract(2);
-        // await transCfxToInternalContract(2);
-        // await transCfxToNullAddress(2);
-        // await invokeContractLeadStorageRelease();
-        // await invokeContractSponsored();
-        // await invokeSpnsoneredContractLeadStorageRelease();
-        // await invokeSponsoredUnaffordContract();
-        // await replaceSponsor();
-        // await stakeUnstake();
+        await showSponsorState(contractAddrs.sponsoredUnaffordContract);
+        await transCfxToUser(2);
+        await transCfxToContract(2);
+        await transCfxToInternalContract(2);
+        await transCfxToNullAddress(2);
+        await invokeContractLeadStorageRelease();
+        await invokeContractSponsored();
+        await invokeSpnsoneredContractLeadStorageRelease();
+        await invokeSponsoredUnaffordContract();
+        await replaceSponsor();
+        await stakeUnstake();
         await internalTransferCfx();
         await gasRefund();
-        return
-
-
-        // TODO: wait full-node fix cip-78
+        // valid after full-node fixed cip-78
         await failedToinvokeSpnsoneredContractLeadStorageRelease();
-        // TODO: wait full-node fix issue 3
+        // valid after full-node fixed issue 3
         await destroyContract();
 
     } catch (e) {
@@ -252,9 +249,12 @@ async function internalTransferCfx() {
 
     receipt = await contracts.normalContract.mustInternalFail().sendTransaction({ from: accounts[0].address }).executed();
     console.log('Internal transfer fail', shortReceipt(receipt));
+
+    receipt = await contracts.normalContract.must1stLevelFailAnd2ndOk().sendTransaction({ from: accounts[0].address, value: Drip.fromCFX(1) }).executed();
+    console.log('Internal transfer 1st level fail and 2nd level success', shortReceipt(receipt));
 }
 
-async function gasRefund(count) {
+async function gasRefund() {
     console.log("send normal tx and will lead gas refund:", await cfx.cfx.sendTransaction({ from: accounts[1], to: accounts[2].address, value: 10, gas: 30000 }).then(waitReceipt).then(shortReceipt))
 }
 

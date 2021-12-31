@@ -11,6 +11,11 @@ contract TestTraceA {
         revert();
     }
 
+    function mustOkThenRevert() public payable {
+        payable(0).transfer(msg.value);
+        revert();
+    }
+
     function mustOk() public payable {}
 }
 
@@ -69,12 +74,17 @@ contract TestRosetta {
             abi.encodeWithSignature("mustRevert()")
         );
         emit InteralCalled(callResult);
+        (callResult, ) = address(a).call{value: 1 ether}(
+            abi.encodeWithSignature("mustRevert()")
+        );
+        emit InteralCalled(callResult);
     }
 
-    function mustInternalFailBecasueOfBalance() public {
+    function must1stLevelFailAnd2ndOk() public payable {
+        require(msg.value >= 1 ether, "must pay at least 1 ether");
         TestTraceA a = new TestTraceA();
         (bool callResult, ) = address(a).call{value: 1 ether}(
-            abi.encodeWithSignature("mustRevert()")
+            abi.encodeWithSignature("mustOkThenRevert()")
         );
         emit InteralCalled(callResult);
     }

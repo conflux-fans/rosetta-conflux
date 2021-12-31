@@ -59,6 +59,8 @@ const (
 	// a miner block reward.
 	MinerRewardOpType = "MINER_REWARD"
 
+	PosRewardOpType = "POS_REWARD"
+
 	// UncleRewardOpType is used to describe
 	// an uncle block reward.
 	UncleRewardOpType = "UNCLE_REWARD"
@@ -194,11 +196,11 @@ var (
 	OperationTypes = []string{
 		MinerRewardOpType,
 		// UncleRewardOpType,
-		FeeOpType,
+		// FeeOpType,
 
-		GasFeeOpType,
-		StorageCollaterlOpType,
-		StorageReleaseOpType,
+		// GasFeeOpType,
+		// StorageCollaterlOpType,
+		// StorageReleaseOpType,
 		// CallOpType,
 		CreateOpType,
 		// CallResultOpType,

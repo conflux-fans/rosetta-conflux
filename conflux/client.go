@@ -10,7 +10,6 @@ import (
 	"github.com/Conflux-Chain/go-conflux-sdk/cfxclient/bulk"
 	"github.com/Conflux-Chain/go-conflux-sdk/types"
 	cfxSdkTypes "github.com/Conflux-Chain/go-conflux-sdk/types"
-	"github.com/Conflux-Chain/go-conflux-sdk/types/cfxaddress"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/pkg/errors"
@@ -76,6 +75,7 @@ func (ec *Client) getParsedBlock(
 ) {
 	block, loadedTransactions, err := ec.getBlock(ctx, _blockIdentifier)
 	if err != nil {
+		fmt.Printf("%+v: could not get block", err)
 		return nil, fmt.Errorf("%w: could not get block", err)
 	}
 
@@ -151,7 +151,7 @@ func (ec *Client) blockRewardTransaction(block *cfxSdkTypes.Block) (*RosettaType
 		}, nil
 	}
 
-	// if block is pivot block, include epoch-12 rewards
+	// if block is pivot block, include epoch-12 pow rewards
 	rewardEpochNum := new(big.Int).Sub(block.EpochNumber.ToInt(), big.NewInt(12))
 	if rewardEpochNum.Sign() < 0 {
 		return &RosettaTypes.Transaction{
@@ -159,35 +159,19 @@ func (ec *Client) blockRewardTransaction(block *cfxSdkTypes.Block) (*RosettaType
 		}, nil
 	}
 
-	blockRewards, err := ec.getEpochReward(*cfxSdkTypes.NewEpochNumberBig(rewardEpochNum))
+	ops, err := ec.getPowEpochRewardOperations(*cfxSdkTypes.NewEpochNumberBig(rewardEpochNum))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get epoch reward")
+		return nil, errors.Wrap(err, "failed to get epoch reward operations")
 	}
 
-	var ops []*RosettaTypes.Operation
-	for _, reward := range blockRewards {
-		// totalReward := big.NewInt(0).Sub(reward.TotalReward.ToInt(), reward.TxFee.ToInt())
-		totalReward := reward.TotalReward.ToInt()
-		miningRewardOp := &RosettaTypes.Operation{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 0,
-			},
-			Type:   MinerRewardOpType,
-			Status: RosettaTypes.String(SuccessStatus),
-			Account: &RosettaTypes.AccountIdentifier{
-				Address: block.Miner.String(),
-			},
-			Amount: &RosettaTypes.Amount{
-				Value:    totalReward.String(),
-				Currency: Currency,
-			},
-		}
-		ops = append(ops, miningRewardOp)
+	posOps, err := ec.getPosEpochReward(*cfxSdkTypes.NewEpochNumberBig(rewardEpochNum))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get epoch pos reward operations")
 	}
 
 	return &RosettaTypes.Transaction{
 		TransactionIdentifier: txIdentifier,
-		Operations:            ops,
+		Operations:            append(ops, posOps...),
 	}, nil
 }
 
@@ -197,9 +181,9 @@ func (ec *Client) populateTransaction(
 	ops := []*RosettaTypes.Operation{}
 
 	// Compute fee operations
-	ops = appendFeeOps(tx, ops)
-	ops = appendStorageUsedOps(tx, ops)
-	ops = appendStorageRelaseOps(tx, ops)
+	// ops = appendFeeOps(tx, ops)
+	// ops = appendStorageUsedOps(tx, ops)
+	// ops = appendStorageRelaseOps(tx, ops)
 
 	// Compute trace operations
 	// traces := flattenTraces(tx.Trace, []*flatCall{})
@@ -334,14 +318,14 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 		return ops, nil
 	}
 
-	tree, err := cfxSdkTypes.TraceInTree(traces)
+	tire, err := cfxSdkTypes.TraceInTire(traces)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	flattened := tree.Flatten()
+	flattened := tire.Flatten()
 	for _, trace := range flattened {
-		from, to, opType, value, status, err := getOpElems(*trace)
+		from, fromPocket, to, toPocket, opType, value, status, err := getOpElems(*trace)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -352,13 +336,18 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 
 		metadata := getOpMetadata(*trace)
 
-		// if call and value is 0 skip
-		if trace.Type == cfxSdkTypes.CALL_TYPE && value.Cmp(big.NewInt(0)) == 0 {
+		// ignore
+		// 1. valid false
+		// 2. value is 0
+		if !trace.Valid || value.Cmp(big.NewInt(0)) == 0 {
 			continue
 		}
 
-		isNeedFromOps := from.GetAddressType() != cfxaddress.AddressTypeBuiltin && from.GetAddressType() != cfxaddress.AddressTypeNull
-		isNeedToOps := to.GetAddressType() != cfxaddress.AddressTypeBuiltin && to.GetAddressType() != cfxaddress.AddressTypeNull
+		// ignore
+		// 1. ignore from op if fromPocket is not balance
+		// 2. ignore from op if fromPocket is not balance
+		isNeedFromOps := fromPocket == cfxSdkTypes.POCKET_BALANCE
+		isNeedToOps := toPocket == cfxSdkTypes.POCKET_BALANCE
 
 		if isNeedFromOps {
 			fromOp := &RosettaTypes.Operation{
@@ -407,8 +396,6 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 
 			ops = append(ops, toOp)
 		}
-
-		// startIndex += 2
 	}
 
 	// FIXME:
@@ -419,20 +406,21 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 }
 
 func getOpElems(node cfxSdkTypes.LocalizedTraceNode) (
-	from cfxSdkTypes.Address, to cfxSdkTypes.Address,
+	from cfxSdkTypes.Address, fromPocketType cfxSdkTypes.PocketType,
+	to cfxSdkTypes.Address, toPocketType cfxSdkTypes.PocketType,
 	traceType string, value *big.Int, status string, err error) {
 	switch node.Type {
 	case cfxSdkTypes.CALL_TYPE:
 		r := node.CallWithResult
-		return r.From, r.To, strings.ToUpper(r.CallType), r.Value.ToInt(), getOpStatus(r.Outcome), nil
+		return r.From, cfxSdkTypes.POCKET_BALANCE, r.To, cfxSdkTypes.POCKET_BALANCE, strings.ToUpper(r.CallType), r.Value.ToInt(), getOpStatus(r.Outcome), nil
 
 	case cfxSdkTypes.CREATE_TYPE:
 		r := node.CreateWithResult
-		return r.From, r.Addr, CreateOpType, r.Value.ToInt(), getOpStatus(r.Outcome), nil
+		return r.From, cfxSdkTypes.POCKET_BALANCE, r.Addr, cfxSdkTypes.POCKET_BALANCE, CreateOpType, r.Value.ToInt(), getOpStatus(r.Outcome), nil
 
 	case cfxSdkTypes.INTERNAL_TRANSFER_ACTIION_TYPE:
 		r := node.InternalTransferAction
-		return r.From, r.To, InternalTransferActionOpType, r.Value.ToInt(), SuccessStatus, nil
+		return r.From, r.FromPocket, r.To, r.ToPocket, InternalTransferActionOpType, r.Value.ToInt(), SuccessStatus, nil
 	}
 	err = errors.New("unsupported trace type")
 	return
@@ -622,6 +610,7 @@ func (ec *Client) getRpcBlock(_blockIdentifier *RosettaTypes.PartialBlockIdentif
 		return nil, errors.New("The block has not been produced yet")
 	}
 
+	fmt.Printf("raw block: %+v\n", raw)
 	// replace parent hash to previours block hash instead of what in tree graph
 	parentNum := raw.BlockNumber.ToInt().Int64() - 1
 	if parentNum >= 0 {
@@ -646,7 +635,6 @@ type loadedTransaction struct {
 	Receipt *cfxSdkTypes.TransactionReceipt
 }
 
-// TODO: according to transaction execution order in epoch to update balance
 func (ec *Client) Balance(ctx context.Context,
 	account *RosettaTypes.AccountIdentifier,
 	block *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.AccountBalanceResponse, error) {
@@ -657,10 +645,12 @@ func (ec *Client) Balance(ctx context.Context,
 		return nil, errors.Wrap(err, "failed to get raw block by rpc")
 	}
 
-	// TODO
 	// get account balance
-	// 1. get pre epoch balance
-	// 2. iterate all transactions in till this block of this epoch
+	pivotBlock, err := ec.c.GetBlockSummaryByEpoch(cfxSdkTypes.NewEpochNumber(rpcBlock.EpochNumber))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get epoch by rpc")
+	}
+
 	addr := ec.c.MustNewAddress(account.Address)
 	epoch := cfxSdkTypes.NewEpochNumber(rpcBlock.EpochNumber)
 	balance, err := ec.c.GetBalance(addr, epoch)
@@ -678,7 +668,7 @@ func (ec *Client) Balance(ctx context.Context,
 		return nil, errors.Wrap(err, "failed to get code")
 	}
 
-	return &RosettaTypes.AccountBalanceResponse{
+	balanceInPivot := &RosettaTypes.AccountBalanceResponse{
 		Balances: []*RosettaTypes.Amount{
 			{
 				Value:    balance.ToInt().String(),
@@ -693,7 +683,73 @@ func (ec *Client) Balance(ctx context.Context,
 			"nonce": nonce.ToInt(),
 			"code":  code.String(),
 		},
-	}, nil
+	}
+
+	// is last block of this epoch? reutrn balance of epoch
+	if pivotBlock.BlockNumber.ToInt().Int64() == rpcBlock.BlockNumber.ToInt().Int64() {
+		return balanceInPivot, nil
+	}
+
+	// otherwise:
+	// 1. get all tx operations between this block to pivot block
+	// 2. exclude all tx operations of step 1
+	return ec.backBalanceFromPivot(ctx, account, pivotBlock.BlockNumber.ToInt(), rpcBlock.BlockNumber.ToInt(), *balanceInPivot)
+}
+
+func (ec *Client) backBalanceFromPivot(ctx context.Context,
+	account *RosettaTypes.AccountIdentifier,
+	pivotBlockNumer *big.Int,
+	currentBlockNumber *big.Int,
+	balanceInPivot RosettaTypes.AccountBalanceResponse,
+) (*RosettaTypes.AccountBalanceResponse, error) {
+
+	for i := pivotBlockNumer.Int64(); i > currentBlockNumber.Int64(); i-- {
+		block, err := ec.Block(ctx, &RosettaTypes.PartialBlockIdentifier{
+			Index: &i,
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get block %d", i)
+		}
+
+		// rollback in reverse order
+		for i := len(block.Transactions); i > 0; i-- {
+			tx := block.Transactions[i-1]
+			for oi := len(tx.Operations); oi > 0; oi-- {
+				op := tx.Operations[oi-1]
+
+				if op.Account.Address != account.Address {
+					continue
+				}
+				// find matched currency
+				matched := findCurrency(balanceInPivot.Balances, op.Amount.Currency.Symbol)
+				if matched == nil {
+					continue
+				}
+
+				// rollback
+				prevVal, ok := new(big.Int).SetString(matched.Value, 0)
+				if !ok {
+					return nil, errors.Errorf("failed to parse value %s to big int", matched.Value)
+				}
+				opVal, ok := new(big.Int).SetString(op.Amount.Value, 0)
+				if !ok {
+					return nil, errors.Errorf("failed to parse value %s to big int", matched.Value)
+				}
+
+				matched.Value = new(big.Int).Sub(prevVal, opVal).String()
+			}
+		}
+	}
+	return &balanceInPivot, nil
+}
+
+func findCurrency(amounts []*RosettaTypes.Amount, currencySymbol string) *RosettaTypes.Amount {
+	for _, amt := range amounts {
+		if amt.Currency.Symbol == currencySymbol {
+			return amt
+		}
+	}
+	return nil
 }
 
 func (ec *Client) PendingNonceAt(ctx context.Context, account cfxSdkTypes.Address) (*big.Int, error) {
@@ -748,9 +804,63 @@ func convertTime(time uint64) int64 {
 }
 
 // ================== wrapper methods =========================
+func (ec *Client) getPowEpochRewardOperations(epockNum cfxSdkTypes.Epoch) ([]*RosettaTypes.Operation, error) {
+	blockRewards, err := ec.c.GetBlockRewardInfo(epockNum)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get block reward info")
+	}
+	var ops []*RosettaTypes.Operation
+	for _, reward := range blockRewards {
+		// totalReward := big.NewInt(0).Sub(reward.TotalReward.ToInt(), reward.TxFee.ToInt())
+		totalReward := reward.TotalReward.ToInt()
+		miningRewardOp := &RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: 0,
+			},
+			Type:   MinerRewardOpType,
+			Status: RosettaTypes.String(SuccessStatus),
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: reward.Author.String(),
+			},
+			Amount: &RosettaTypes.Amount{
+				Value:    totalReward.String(),
+				Currency: Currency,
+			},
+		}
+		ops = append(ops, miningRewardOp)
+	}
+	return ops, nil
+}
 
-func (ec *Client) getEpochReward(epockNum cfxSdkTypes.Epoch) ([]cfxSdkTypes.RewardInfo, error) {
-	return ec.c.GetBlockRewardInfo(epockNum)
+func (ec *Client) getPosEpochReward(epoch cfxSdkTypes.Epoch) ([]*RosettaTypes.Operation, error) {
+	rewards, err := ec.c.GetPosRewardByEpoch(epoch)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get pos reward")
+	}
+
+	if rewards == nil {
+		return nil, nil
+	}
+
+	var ops []*RosettaTypes.Operation
+	for _, reward := range rewards.AccountRewards {
+		miningRewardOp := &RosettaTypes.Operation{
+			OperationIdentifier: &RosettaTypes.OperationIdentifier{
+				Index: 0,
+			},
+			Type:   PosRewardOpType,
+			Status: RosettaTypes.String(SuccessStatus),
+			Account: &RosettaTypes.AccountIdentifier{
+				Address: reward.PowAddress.String(),
+			},
+			Amount: &RosettaTypes.Amount{
+				Value:    reward.Reward.ToInt().String(),
+				Currency: Currency,
+			},
+		}
+		ops = append(ops, miningRewardOp)
+	}
+	return ops, nil
 }
 
 func (ec *Client) getBlockReward(rpcBlock *cfxSdkTypes.Block) (*cfxSdkTypes.RewardInfo, error) {

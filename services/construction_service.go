@@ -166,15 +166,15 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 
 	nonce, err := s.client.PendingNonceAt(ctx, addr)
 	if err != nil {
-		return nil, wrapErr(ErrGeth, err)
+		return nil, wrapErr(ErrCFXNode, err)
 	}
 	gasPrice, err := s.client.SuggestGasPrice(ctx)
 	if err != nil {
-		return nil, wrapErr(ErrGeth, err)
+		return nil, wrapErr(ErrCFXNode, err)
 	}
 	epochNum, err := s.client.EpochNumber(ctx)
 	if err != nil {
-		return nil, wrapErr(ErrGeth, err)
+		return nil, wrapErr(ErrCFXNode, err)
 	}
 
 	metadata := &metadata{
@@ -247,7 +247,7 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 
 	chainID, err := s.client.ChainID()
 	if err := common.UnmarshalMap(request.Metadata, &metadata); err != nil {
-		return nil, wrapErr(ErrGeth, err)
+		return nil, wrapErr(ErrCFXNode, err)
 	}
 	// Required Fields for constructing a real Ethereum transaction
 	toOp, amount := matches[1].First()
@@ -381,7 +381,7 @@ func (s *ConstructionAPIService) ConstructionParse(
 
 		chainID, err := s.client.ChainID()
 		if err != nil {
-			return nil, wrapErr(ErrGeth, err)
+			return nil, wrapErr(ErrCFXNode, err)
 		}
 
 		from, err := tx.Sender(chainID)

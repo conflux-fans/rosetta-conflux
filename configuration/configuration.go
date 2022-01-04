@@ -45,15 +45,15 @@ const (
 	// implementation.
 	PortEnv = "PORT"
 
-	// GethEnv is an optional environment variable
+	// CFXNodeEnv is an optional environment variable
 	// used to connect rosetta-conflux to an already
-	// running geth node.
-	GethEnv = "GETH"
+	// running CFX node.
+	CFXNodeEnv = "CFXNODE"
 
-	// DefaultGethURL is the default URL for
-	// a running geth node. This is used
-	// when GethEnv is not populated.
-	DefaultGethURL = "https://test.confluxrpc.com"
+	// DefaultCFXNodeURL is the default URL for
+	// a running CFX node. This is used
+	// when CFXNodeEnv is not populated.
+	DefaultCFXNodeURL = "https://test.confluxrpc.com"
 
 	// SkipGethAdminEnv is an optional environment variable
 	// to skip geth `admin` calls which are typically not supported
@@ -68,8 +68,8 @@ type Configuration struct {
 	Mode                   Mode
 	Network                *types.NetworkIdentifier
 	GenesisBlockIdentifier *types.BlockIdentifier
-	GethURL                string
-	RemoteGeth             bool
+	CFXNodeURL             string
+	RemoteCFXNode          bool
 	Port                   int
 	// GethArguments          string
 	// SkipGethAdmin          bool
@@ -108,7 +108,7 @@ func LoadConfiguration() (*Configuration, error) {
 		}
 		config.GenesisBlockIdentifier = conflux.MainnetGenesisBlockIdentifier
 		config.Params = MainnetChainConfig
-		// config.GethArguments = ethereum.MainnetGethArguments
+
 	case Testnet:
 		config.Network = &types.NetworkIdentifier{
 			Blockchain: conflux.Blockchain,
@@ -116,19 +116,19 @@ func LoadConfiguration() (*Configuration, error) {
 		}
 		config.GenesisBlockIdentifier = conflux.TestnetGenesisBlockIdentifier
 		config.Params = TestnetChainConfig
-		// config.GethArguments = ethereum.RopstenGethArguments
+
 	case "":
 		return nil, errors.New("NETWORK must be populated")
 	default:
-		
+
 		return nil, fmt.Errorf("%s is not a valid network", networkValue)
 	}
 
-	config.GethURL = DefaultGethURL
-	envGethURL := os.Getenv(GethEnv)
-	if len(envGethURL) > 0 {
-		config.RemoteGeth = true
-		config.GethURL = envGethURL
+	config.CFXNodeURL = DefaultCFXNodeURL
+	envCFXNodeURL := os.Getenv(CFXNodeEnv)
+	if len(envCFXNodeURL) > 0 {
+		config.RemoteCFXNode = true
+		config.CFXNodeURL = envCFXNodeURL
 	}
 
 	// config.SkipGethAdmin = false

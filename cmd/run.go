@@ -85,7 +85,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 
 	var client *conflux.Client
 	if cfg.Mode == configuration.Online {
-		if !cfg.RemoteGeth {
+		if !cfg.RemoteCFXNode {
 			g.Go(func() error {
 				// return ethereum.StartGeth(ctx, cfg.GethArguments, g)
 				return errors.New("not support local node")
@@ -93,7 +93,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 		}
 
 		var err error
-		client, err = conflux.NewClient(cfg.GethURL)
+		client, err = conflux.NewClient(cfg.CFXNodeURL)
 		if err != nil {
 			return fmt.Errorf("%+v: cannot initialize conflux client", err)
 		}

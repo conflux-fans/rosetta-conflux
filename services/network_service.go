@@ -83,11 +83,11 @@ func (s *NetworkAPIService) NetworkStatus(
 
 	currentBlock, currentTime, syncStatus, peers, err := s.client.Status(ctx)
 	if err != nil {
-		return nil, wrapErr(ErrGeth, err)
+		return nil, wrapErr(ErrCFXNode, err)
 	}
 
 	if currentTime < asserter.MinUnixEpoch {
-		return nil, ErrGethNotReady
+		return nil, ErrCFXNodeNotReady
 	}
 
 	return &types.NetworkStatusResponse{

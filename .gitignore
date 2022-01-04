@@ -1,4 +1,3 @@
-cli-data
 .vscode
 # rosetta-cli-conf
 .DS_Store
@@ -7,3 +6,5 @@ main
 rosetta-conflux
 node_modules
 build
+cli-data
+cli-data-*

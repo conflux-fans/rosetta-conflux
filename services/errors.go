@@ -24,7 +24,7 @@ var (
 	Errors = []*types.Error{
 		ErrUnimplemented,
 		ErrUnavailableOffline,
-		ErrGeth,
+		ErrCFXNode,
 		ErrUnableToDecompressPubkey,
 		ErrUnclearIntent,
 		ErrUnableToParseIntermediateResult,
@@ -35,7 +35,7 @@ var (
 		ErrCallMethodInvalid,
 		ErrBlockOrphaned,
 		ErrInvalidAddress,
-		ErrGethNotReady,
+		ErrCFXNodeNotReady,
 	}
 
 	// ErrUnimplemented is returned when an endpoint
@@ -52,11 +52,11 @@ var (
 		Message: "Endpoint unavailable offline",
 	}
 
-	// ErrGeth is returned when geth
+	// ErrCFXNode is returned when CFX node
 	// errors on a request.
-	ErrGeth = &types.Error{
+	ErrCFXNode = &types.Error{
 		Code:    2, //nolint
-		Message: "geth error",
+		Message: "cfx node error",
 	}
 
 	// ErrUnableToDecompressPubkey is returned when
@@ -137,11 +137,11 @@ var (
 		Message: "Invalid address",
 	}
 
-	// ErrGethNotReady is returned when geth
+	// ErrCFXNodeNotReady is returned when CFX node
 	// cannot yet serve any queries.
-	ErrGethNotReady = &types.Error{
+	ErrCFXNodeNotReady = &types.Error{
 		Code:      13, //nolint
-		Message:   "geth not ready",
+		Message:   "CFX node not ready",
 		Retriable: true,
 	}
 

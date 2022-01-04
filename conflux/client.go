@@ -164,7 +164,7 @@ func (ec *Client) blockRewardTransaction(block *cfxSdkTypes.Block) (*RosettaType
 		return nil, errors.Wrap(err, "failed to get epoch reward operations")
 	}
 
-	posOps, err := ec.getPosEpochReward(*cfxSdkTypes.NewEpochNumberBig(rewardEpochNum))
+	posOps, err := ec.getPosEpochReward(*cfxSdkTypes.NewEpochNumberBig(rewardEpochNum), len(ops))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get epoch pos reward operations")
 	}
@@ -340,6 +340,11 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 		// 1. valid false
 		// 2. value is 0
 		if !trace.Valid || value.Cmp(big.NewInt(0)) == 0 {
+			continue
+		}
+
+		// ignore if delegatecall
+		if trace.CallWithResult != nil && cfxSdkTypes.CallType(trace.CallWithResult.Call.CallType) == cfxSdkTypes.CALL_DELEGATECALL {
 			continue
 		}
 
@@ -815,7 +820,7 @@ func (ec *Client) getPowEpochRewardOperations(epockNum cfxSdkTypes.Epoch) ([]*Ro
 		totalReward := reward.TotalReward.ToInt()
 		miningRewardOp := &RosettaTypes.Operation{
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 0,
+				Index: int64(len(ops)),
 			},
 			Type:   MinerRewardOpType,
 			Status: RosettaTypes.String(SuccessStatus),
@@ -832,7 +837,7 @@ func (ec *Client) getPowEpochRewardOperations(epockNum cfxSdkTypes.Epoch) ([]*Ro
 	return ops, nil
 }
 
-func (ec *Client) getPosEpochReward(epoch cfxSdkTypes.Epoch) ([]*RosettaTypes.Operation, error) {
+func (ec *Client) getPosEpochReward(epoch cfxSdkTypes.Epoch, startIdx int) ([]*RosettaTypes.Operation, error) {
 	rewards, err := ec.c.GetPosRewardByEpoch(epoch)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get pos reward")
@@ -846,7 +851,7 @@ func (ec *Client) getPosEpochReward(epoch cfxSdkTypes.Epoch) ([]*RosettaTypes.Op
 	for _, reward := range rewards.AccountRewards {
 		miningRewardOp := &RosettaTypes.Operation{
 			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: 0,
+				Index: int64(startIdx + len(ops)),
 			},
 			Type:   PosRewardOpType,
 			Status: RosettaTypes.String(SuccessStatus),

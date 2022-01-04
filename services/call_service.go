@@ -58,7 +58,7 @@ func (s *CallAPIService) Call(
 		return nil, wrapErr(ErrCallMethodInvalid, err)
 	}
 	if err != nil {
-		return nil, wrapErr(ErrGeth, err)
+		return nil, wrapErr(ErrCFXNode, err)
 	}
 
 	return response, nil

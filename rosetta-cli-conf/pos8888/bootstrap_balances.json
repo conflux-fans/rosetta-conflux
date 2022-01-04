@@ -1,3 +1,22 @@
 [
-    
+    {
+        "account_identifier": {
+            "address": "net8888:aar8jzybzv0fhzreav49syxnzut8s0jt1ah73na82g"
+        },
+        "currency": {
+            "symbol": "CFX",
+            "decimals": 18
+        },
+        "value": "50000000000000000000000000"
+    },
+    {
+        "account_identifier": {
+            "address": "net8888:aathrdjwhfsjzt88577vz42r4hkh41vmt6scmudy5f"
+        },
+        "currency": {
+            "symbol": "CFX",
+            "decimals": 18
+        },
+        "value": "50000000000000000000000000"
+    }
 ]

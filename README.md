@@ -76,7 +76,7 @@ _If you cloned the repository, you can run `make run-mainnet-online`._ -->
 ```text
 docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -e "GETH=<NODE URL>" -p 8080:8080 -p 30303:30303 rosetta-conflux:latest
 ```
-_If you cloned the repository, you can run `make run-mainnet-remote geth=<NODE URL>`._
+_If you cloned the repository, you can run `make run-mainnet-remote cfxnode=<NODE URL>`._
 <!-- 
 #### Mainnet:Offline
 ```text
@@ -94,7 +94,7 @@ _If you cloned the repository, you can run `make run-testnet-online`._ -->
 ```text
 docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -e "GETH=<NODE URL>" -p 8080:8080 -p 30303:30303 rosetta-conflux:latest
 ```
-_If you cloned the repository, you can run `make run-testnet-remote geth=<NODE URL>`._
+_If you cloned the repository, you can run `make run-testnet-remote cfxnode=<NODE URL>`._
 <!-- 
 #### Testnet:Offline
 ```text

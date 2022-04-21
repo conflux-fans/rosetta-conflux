@@ -8,3 +8,5 @@ node_modules
 build
 cli-data
 cli-data-*
+*.log
+*.txt

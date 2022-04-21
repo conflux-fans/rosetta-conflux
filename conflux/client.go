@@ -8,6 +8,7 @@ import (
 
 	sdk "github.com/Conflux-Chain/go-conflux-sdk"
 	"github.com/Conflux-Chain/go-conflux-sdk/cfxclient/bulk"
+	"github.com/Conflux-Chain/go-conflux-sdk/middleware"
 	"github.com/Conflux-Chain/go-conflux-sdk/types"
 	cfxSdkTypes "github.com/Conflux-Chain/go-conflux-sdk/types"
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
@@ -33,7 +34,7 @@ func NewClient(url string) (*Client, error) {
 		return nil, errors.Wrap(err, "failed to create client")
 	}
 	// c.UseBatchCallRpcMiddleware(middleware.BatchCallRpcConsoleMiddleware)
-	// c.UseCallRpcMiddleware(middleware.CallRpcConsoleMiddleware)
+	c.UseCallRpcMiddleware(middleware.CallRpcConsoleMiddleware)
 	return &Client{c}, nil
 }
 
@@ -325,7 +326,7 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 
 	flattened := tire.Flatten()
 	for _, trace := range flattened {
-		from, fromPocket, to, toPocket, opType, value, status, err := getOpElems(*trace)
+		from, fromPocket, fromSpace, to, toPocket, toSpace, opType, value, status, err := getOpElems(*trace)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -350,9 +351,8 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 
 		// ignore
 		// 1. ignore from op if fromPocket is not balance
-		// 2. ignore from op if fromPocket is not balance
-		isNeedFromOps := fromPocket == cfxSdkTypes.POCKET_BALANCE
-		isNeedToOps := toPocket == cfxSdkTypes.POCKET_BALANCE
+		isNeedFromOps := fromPocket == cfxSdkTypes.POCKET_BALANCE && fromSpace == cfxSdkTypes.SPACE_NATIVE
+		isNeedToOps := toPocket == cfxSdkTypes.POCKET_BALANCE && toSpace == cfxSdkTypes.SPACE_NATIVE
 
 		if isNeedFromOps {
 			fromOp := &RosettaTypes.Operation{
@@ -411,35 +411,41 @@ func traceOps(traces []cfxSdkTypes.LocalizedTrace, startIndex int64) ([]*Rosetta
 }
 
 func getOpElems(node cfxSdkTypes.LocalizedTraceNode) (
-	from cfxSdkTypes.Address, fromPocketType cfxSdkTypes.PocketType,
-	to cfxSdkTypes.Address, toPocketType cfxSdkTypes.PocketType,
+	from cfxSdkTypes.Address, fromPocketType cfxSdkTypes.PocketType, fromSpace cfxSdkTypes.SpaceType,
+	to cfxSdkTypes.Address, toPocketType cfxSdkTypes.PocketType, toSpace cfxSdkTypes.SpaceType,
 	traceType string, value *big.Int, status string, err error) {
 	switch node.Type {
-	case cfxSdkTypes.CALL_TYPE:
+	case cfxSdkTypes.TRACE_CALL:
 		r := node.CallWithResult
-		return r.From, cfxSdkTypes.POCKET_BALANCE, r.To, cfxSdkTypes.POCKET_BALANCE, strings.ToUpper(r.CallType), r.Value.ToInt(), getOpStatus(r.Outcome), nil
+		return r.From, cfxSdkTypes.POCKET_BALANCE, r.Call.Space,
+			r.To, cfxSdkTypes.POCKET_BALANCE, r.Call.Space,
+			strings.ToUpper(string(r.CallType)), r.Value.ToInt(), getOpStatus(r.Outcome), nil
 
-	case cfxSdkTypes.CREATE_TYPE:
+	case cfxSdkTypes.TRACE_CREATE:
 		r := node.CreateWithResult
-		return r.From, cfxSdkTypes.POCKET_BALANCE, r.Addr, cfxSdkTypes.POCKET_BALANCE, CreateOpType, r.Value.ToInt(), getOpStatus(r.Outcome), nil
+		return r.From, cfxSdkTypes.POCKET_BALANCE, r.Create.Space,
+			r.Addr, cfxSdkTypes.POCKET_BALANCE, r.Create.Space,
+			strings.ToUpper(string(r.CreateType)), r.Value.ToInt(), getOpStatus(r.Outcome), nil
 
-	case cfxSdkTypes.INTERNAL_TRANSFER_ACTIION_TYPE:
+	case cfxSdkTypes.TRACE_INTERNAL_TRANSFER_ACTIION:
 		r := node.InternalTransferAction
-		return r.From, r.FromPocket, r.To, r.ToPocket, InternalTransferActionOpType, r.Value.ToInt(), SuccessStatus, nil
+		return r.From, r.FromPocket, r.FromSpace,
+			r.To, r.ToPocket, r.ToSpace,
+			InternalTransferActionOpType, r.Value.ToInt(), SuccessStatus, nil
 	}
 	err = errors.New("unsupported trace type")
 	return
 }
 
-func getOpStatus(outcome string) string {
-	if outcome == "success" {
+func getOpStatus(outcome cfxSdkTypes.OutcomeType) string {
+	if outcome == cfxSdkTypes.OUTCOME_SUCCESS {
 		return SuccessStatus
 	}
 	return FailureStatus
 }
 
 func getOpMetadata(node cfxSdkTypes.LocalizedTraceNode) map[string]interface{} {
-	if node.Type == cfxSdkTypes.CALL_TYPE {
+	if node.Type == cfxSdkTypes.TRACE_CALL {
 		if node.CallWithResult.Outcome == "success" {
 			return nil
 		}
@@ -449,7 +455,7 @@ func getOpMetadata(node cfxSdkTypes.LocalizedTraceNode) map[string]interface{} {
 		}
 	}
 
-	if node.Type == cfxSdkTypes.CREATE_TYPE {
+	if node.Type == cfxSdkTypes.TRACE_CREATE {
 		if node.CreateWithResult.Outcome == "success" {
 			return nil
 		}

@@ -18,6 +18,7 @@ import (
 	"context"
 	"math/big"
 
+	cfxSdkTypes "github.com/Conflux-Chain/go-conflux-sdk/types"
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -58,12 +59,11 @@ const (
 	// MinerRewardOpType is used to describe
 	// a miner block reward.
 	MinerRewardOpType = "MINER_REWARD"
-
-	PosRewardOpType = "POS_REWARD"
+	PosRewardOpType   = "POS_REWARD"
 
 	// UncleRewardOpType is used to describe
 	// an uncle block reward.
-	UncleRewardOpType = "UNCLE_REWARD"
+	// UncleRewardOpType = "UNCLE_REWARD"
 
 	// FeeOpType is used to represent fee operations.
 	FeeOpType              = "FEE"
@@ -71,23 +71,11 @@ const (
 	StorageCollaterlOpType = "STORAGE_COLLATERAL_FEE"
 	StorageReleaseOpType   = "STORAGE_RELEASE"
 
-	// CallOpType is used to represent CALL trace operations.
-	CallOpType = "CALL"
-
-	// CreateOpType is used to represent CREATE trace operations.
-	CreateOpType = "CREATE"
-
-	// CallResultOpType = "CallResult"
-
-	// CreateResultOpType = "CreateResult"
-
-	InternalTransferActionOpType = "INTERNALTRANSFERACTION"
-
-	// Create2OpType is used to represent CREATE2 trace operations.
-	Create2OpType = "CREATE2"
-
 	// SelfDestructOpType is used to represent SELFDESTRUCT trace operations.
 	SelfDestructOpType = "SELFDESTRUCT"
+
+	// CallOpType is used to represent CALL trace operations.
+	CallOpType = "CALL"
 
 	// CallCodeOpType is used to represent CALLCODE trace operations.
 	CallCodeOpType = "CALLCODE"
@@ -97,6 +85,14 @@ const (
 
 	// StaticCallOpType is used to represent STATICCALL trace operations.
 	StaticCallOpType = "STATICCALL"
+
+	// CreateOpType is used to represent CREATE trace operations.
+	CreateOpType = cfxSdkTypes.CREATE_CREATE
+
+	// Create2OpType is used to represent CREATE2 trace operations.
+	Create2OpType = cfxSdkTypes.CREATE_CREATE2
+
+	InternalTransferActionOpType = "INTERNALTRANSFERACTION"
 
 	// DestructOpType is a synthetic operation used to represent the
 	// deletion of suicided accounts that still have funds at the end
@@ -195,6 +191,7 @@ var (
 	// OperationTypes are all suppoorted operation types.
 	OperationTypes = []string{
 		MinerRewardOpType,
+		PosRewardOpType,
 		// UncleRewardOpType,
 		// FeeOpType,
 
@@ -202,7 +199,7 @@ var (
 		// StorageCollaterlOpType,
 		// StorageReleaseOpType,
 		// CallOpType,
-		CreateOpType,
+		string(CreateOpType),
 		// CallResultOpType,
 		// CreateResultOpType,
 		InternalTransferActionOpType,
@@ -269,8 +266,8 @@ func CallType(t string) bool {
 // if the provided trace type is a create type.
 func CreateType(t string) bool {
 	createTypes := []string{
-		CreateOpType,
-		Create2OpType,
+		string(CreateOpType),
+		string(Create2OpType),
 	}
 
 	for _, createType := range createTypes {

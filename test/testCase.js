@@ -18,6 +18,13 @@
 // 10. pos reward
 // 11. gas 返还的情况
 // 12. 合约调用外层失败内层成功
+// 
+// 13. corss contract
+//    1. createEVM
+//    2. create2EVM
+//    3. transferEVM
+//    4. callEVM
+//    5. withdrawFromMapped
 
 // TODO: 
 // 1. 在多节点环境下测试
@@ -30,11 +37,14 @@
 // 4. 合约有先使用存储又释放存储的操作时，存储抵押预估值为整体使用的值；实际应该为使用的最大值
 // 5. js-conflux-sdk 给合约转账不estimte
 
-const { Conflux, Contract, format, Drip } = require('js-conflux-sdk');
+const { Conflux, Contract, address, format, Drip } = require('js-conflux-sdk');
+const ethers = require('ethers')
+const util = require('util')
 const config = require('./config')
 const path = require('path')
 const fs = require('fs')
-const TestRosettaMeta = require(path.join(__dirname, './build/contracts/TestRosetta.json'));
+const TestRosettaMeta = require(path.join(__dirname, './build/contracts/TestRosettaCoreSpace.json'));
+const TestCrossCreateEvm = require(path.join(__dirname, './build/contracts/TestCrossCreateEvm.json'));
 const cfx = new Conflux({
     url: 'http://127.0.0.1:12537',
     networkId: 1037,
@@ -43,6 +53,10 @@ const cfx = new Conflux({
     // networkId: 1,
 
     // logger: console, // for debug
+    // logger: {
+    //     error: v => console.error(util.inspect(v, { depth: 5, colors: true })), // for test
+    //     info: v => console.log(util.inspect(v, { depth: 5, colors: true })), // for test
+    // }
 });
 
 const accounts = [];
@@ -63,6 +77,7 @@ let contractAddrs = {
 const Staking = cfx.InternalContract('Staking');
 const AdminControl = cfx.InternalContract('AdminControl');
 const SponsorControl = cfx.InternalContract('SponsorWhitelistControl');
+const CrossSpaceCall = cfx.InternalContract('CrossSpaceCall');
 
 async function main() {
     try {
@@ -85,12 +100,15 @@ async function main() {
         // valid after full-node fixed issue 3
         await destroyContract();
 
+        await crossSpaceCall();
+
     } catch (e) {
         console.error("error:", e)
     }
 }
 
 async function init() {
+    console.log("init...")
     accounts.push(cfx.wallet.addPrivateKey("0xa32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a368638a"));
     accounts.push(cfx.wallet.addPrivateKey("0xb32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a368638b"));
     accounts.push(cfx.wallet.addPrivateKey("0xc32f1f94134be66e784230ff4813b8a1e79e5d521ca2f1be4f69d2f4a368638c"));
@@ -119,7 +137,7 @@ async function deploy() {
         const ncHash = await nc.constructor().sendTransaction({ from: accounts[0].address })
         let { contractCreated, epochNumber } = await waitReceipt(ncHash)
         contractAddrs.normalContract = contractCreated
-        console.log("deploy normalContract done on epoch", epochNumber)
+        console.log(`deploy normalContract done on epoch ${epochNumber} contractCreated ${contractCreated}`)
     }
 
 
@@ -128,7 +146,7 @@ async function deploy() {
         const scHash = await sc.constructor().sendTransaction({ from: accounts[0].address })
         let receipt = await waitReceipt(scHash)
         contractAddrs.sponsoredContract = receipt.contractCreated;
-        console.log("deploy sponsoredContract done on epoch", receipt.epochNumber)
+        console.log(`deploy sponsoredContract done on epoch ${receipt.epochNumber} contractCreated ${receipt.contractCreated}`)
 
         // accounts1 sponsor for it
         console.log("sponsor gas for sponsoredContract done", await SponsorControl.setSponsorForGas(contractAddrs.sponsoredContract, 1e10).sendTransaction({ from: accounts[1].address, value: 1e17 }))
@@ -258,6 +276,31 @@ async function gasRefund() {
     console.log("send normal tx and will lead gas refund:", await cfx.cfx.sendTransaction({ from: accounts[1], to: accounts[2].address, value: 10, gas: 30000 }).then(waitReceipt).then(shortReceipt))
 }
 
+async function crossSpaceCall() {
+    // create evm
+    let receipt = await CrossSpaceCall.createEVM(TestCrossCreateEvm.bytecode).sendTransaction({ from: accounts[0].address }).executed();
+    const creatEvmLog = CrossSpaceCall.abi.decodeLog(receipt.logs[0])
+    const evmAddr = creatEvmLog.object.contract_address.substring(0, 42)
+    console.log("\nCrossSpaceCall create evm", shortReceipt(receipt), "evm contract address:", evmAddr)
+    logTxTrace(receipt.transactionHash)
+
+    // call evm
+    const data = await cfx.Contract({ abi: TestCrossCreateEvm.abi }).buy().data
+    receipt = await CrossSpaceCall.callEVM(evmAddr, data).sendTransaction({ from: accounts[0].address }).executed();
+    console.log("\nCrossSpaceCall call evm", shortReceipt(receipt))
+    logTxTrace(receipt.transactionHash)
+
+    // transfer evm
+    const evmUser = await address.cfxMappedEVMSpaceAddress(accounts[1].address)
+    receipt = await CrossSpaceCall.transferEVM(evmUser).sendTransaction({ from: accounts[0].address, value: 100 }).executed();
+    console.log("\nCrossSpaceCall transfer evm", shortReceipt(receipt))
+    logTxTrace(receipt.transactionHash)
+
+    // withdrawFromMapped
+    receipt = await CrossSpaceCall.withdrawFromMapped(100).sendTransaction({ from: accounts[1].address }).executed();
+    console.log("\nCrossSpaceCall withdraw from mapped", shortReceipt(receipt))
+    logTxTrace(receipt.transactionHash)
+}
 
 async function waitReceipt(txhash) {
     while (true) {
@@ -278,6 +321,11 @@ async function showSponsorState(target) {
     const gasSponsored = await SponsorControl.getSponsoredBalanceForGas(target)
     const storageSponsored = await SponsorControl.getSponsoredBalanceForCollateral(target)
     console.log(`sponsor state of ${target}`, gasSponsored, storageSponsored)
+}
+
+async function logTxTrace(txhash){
+    let trace = await cfx.traceTransaction(txhash)
+    console.log(trace)
 }
 
 function getSponsorResult(receipt) {

@@ -29,7 +29,15 @@ contract TestTraceB {
     }
 }
 
-contract TestRosetta {
+contract TestCrossCreateEvm {
+    mapping(address => uint256) balances;
+
+    function buy() public payable {
+        balances[msg.sender] += 1;
+    }
+}
+
+contract TestRosettaCoreSpace {
     event InteralCalled(bool success);
 
     constructor() {

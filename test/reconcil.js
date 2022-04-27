@@ -2,6 +2,8 @@
 // request block
 // compare account balance
 
+SERVER="http://8.142.101.44:8080"
+
 let request = require('request');
 const { promisify, inspect } = require("util");
 const BN = require('bn.js');
@@ -20,14 +22,18 @@ async function reconcil(user, startBlock, endBlock) {
                 expectBalance = expectBalance.add(new BN(op.amount.value));
             })
         })
-        console.log(`expect balance of ${user} at block ${startBlock - 1} is ${expectBalance}, got ${gotBalance}`,);
+        console.log(`expect balance of ${user} at block ${startBlock - 1} is ${expectBalance}, got ${gotBalance}`);
+        if (!expectBalance.eq(gotBalance)) {
+            console.error(`Unbalanced reconciliation`)
+            return
+        }
     }
 }
 
 async function getBlock(blockNumber) {
     var options = {
         'method': 'POST',
-        'url': 'http://127.0.0.1:8080/block',
+        'url': `${SERVER}/block`,
         'headers': {
             'Content-Type': 'application/json'
         },
@@ -50,7 +56,7 @@ async function getBlock(blockNumber) {
 async function getBalance(address, blockNumber) {
     var options = {
         'method': 'POST',
-        'url': 'http://127.0.0.1:8080/account/balance',
+        'url': `${SERVER}/account/balance`,
         'headers': {
             'Content-Type': 'application/json'
         },
@@ -84,4 +90,4 @@ async function getBalance(address, blockNumber) {
     return new BN(value);
 }
 
-reconcil("net8888:aak2rra2njvd77ezwjvx04kkds9fzagfe6xm1vavv4", 24462, 24538)
+reconcil("net8888:aasa3uujezan3gy2mt5x33d7889fmy46gugjxpz8xg", 76477, 77000)

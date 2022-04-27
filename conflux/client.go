@@ -484,7 +484,9 @@ func (ec *Client) getBlock(
 		return nil, nil, errors.Wrap(err, "failed to get raw block by rpc")
 	}
 
-	rpcTxs := rpcBlock.Transactions
+	// remove non-executed txs
+	rpcTxs := getValidTxs(rpcBlock)
+
 	// get receipts
 	bulkCaller := bulk.NewBulkCaller(ec.c)
 	receipts := make([]*cfxSdkTypes.TransactionReceipt, len(rpcTxs))
@@ -549,6 +551,19 @@ func (ec *Client) getBlock(
 		// loadedTxs[i].RawTrace = rawTraces[i].Result
 	}
 	return rpcBlock, loadedTxs, nil
+}
+
+func getValidTxs(rpcBlock *cfxSdkTypes.Block) []cfxSdkTypes.Transaction {
+	rpcTxs := rpcBlock.Transactions
+
+	filterd := []cfxSdkTypes.Transaction{}
+	for _, tx := range rpcTxs {
+		if tx.BlockHash != nil {
+			filterd = append(filterd, tx)
+		}
+	}
+	rpcTxs = filterd
+	return rpcTxs
 }
 
 func (ec *Client) getRpcBlock(_blockIdentifier *RosettaTypes.PartialBlockIdentifier, isContainTxs bool) (
@@ -748,9 +763,11 @@ func (ec *Client) backBalanceFromPivot(ctx context.Context,
 				}
 
 				matched.Value = new(big.Int).Sub(prevVal, opVal).String()
+				fmt.Printf("matched.Value %v-%v=%v\n", prevVal, opVal, matched.Value)
 			}
 		}
 	}
+	fmt.Printf("&balanceInPivot %v\n", balanceInPivot)
 	return &balanceInPivot, nil
 }
 

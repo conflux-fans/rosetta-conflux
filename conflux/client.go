@@ -505,7 +505,7 @@ func (ec *Client) getBlock(
 			return nil, nil, *errs[i]
 		}
 
-		fmt.Printf("\nreceipt %+v\n\n", *receipts[i])
+		// fmt.Printf("\nreceipt %+v\n\n", *receipts[i])
 
 		if receipts[i] == nil {
 			return nil, nil, fmt.Errorf("got empty receipt for %x", rpcTxs[i].Hash)
@@ -610,6 +610,9 @@ func (ec *Client) getRpcBlock(_blockIdentifier *RosettaTypes.PartialBlockIdentif
 			if err != nil {
 				return nil, err
 			}
+			if sb == nil {
+				return nil, nil
+			}
 			return &cfxSdkTypes.Block{
 				BlockHeader: sb.BlockHeader,
 			}, nil
@@ -636,7 +639,7 @@ func (ec *Client) getRpcBlock(_blockIdentifier *RosettaTypes.PartialBlockIdentif
 		return nil, errors.New("The block has not been produced yet")
 	}
 
-	fmt.Printf("raw block: %+v\n", raw)
+	// fmt.Printf("raw block: %+v\n", raw)
 	// replace parent hash to previours block hash instead of what in tree graph
 	parentNum := raw.BlockNumber.ToInt().Int64() - 1
 	if parentNum >= 0 {
@@ -763,11 +766,11 @@ func (ec *Client) backBalanceFromPivot(ctx context.Context,
 				}
 
 				matched.Value = new(big.Int).Sub(prevVal, opVal).String()
-				fmt.Printf("matched.Value %v-%v=%v\n", prevVal, opVal, matched.Value)
+				// fmt.Printf("matched.Value %v-%v=%v\n", prevVal, opVal, matched.Value)
 			}
 		}
 	}
-	fmt.Printf("&balanceInPivot %v\n", balanceInPivot)
+	// fmt.Printf("&balanceInPivot %v\n", balanceInPivot)
 	return &balanceInPivot, nil
 }
 
@@ -861,7 +864,7 @@ func (ec *Client) getPowEpochRewardOperations(epockNum cfxSdkTypes.Epoch) ([]*Ro
 }
 
 func (ec *Client) getPosEpochReward(epoch cfxSdkTypes.Epoch, startIdx int) ([]*RosettaTypes.Operation, error) {
-	rewards, err := ec.c.GetPosRewardByEpoch(epoch)
+	rewards, err := ec.c.GetPoSRewardByEpoch(epoch)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get pos reward")
 	}

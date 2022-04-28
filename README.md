@@ -8,10 +8,10 @@
 </h3>
 <p align="center">
   <!-- <a href="https://circleci.com/gh/coinbase/rosetta-conflux/tree/master"><img src="https://circleci.com/gh/coinbase/rosetta-conflux/tree/master.svg?style=shield" /></a>
-  <a href="https://coveralls.io/github/coinbase/rosetta-conflux"><img src="https://coveralls.io/repos/github/coinbase/rosetta-conflux/badge.svg" /></a>
-  <a href="https://goreportcard.com/report/github.com/coinbase/rosetta-conflux"><img src="https://goreportcard.com/badge/github.com/coinbase/rosetta-conflux" /></a>
-  <a href="https://github.com/coinbase/rosetta-conflux/blob/master/LICENSE.txt"><img src="https://img.shields.io/github/license/coinbase/rosetta-conflux.svg" /></a>
-  <a href="https://pkg.go.dev/github.com/coinbase/rosetta-conflux?tab=overview"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=shield" /></a> -->
+  <a href="https://coveralls.io/github/coinbase/rosetta-conflux"><img src="https://coveralls.io/repos/github/coinbase/rosetta-conflux/badge.svg" /></a> -->
+  <a href="https://goreportcard.com/report/github.com/conflux-fans/rosetta-conflux"><img src="https://goreportcard.com/badge/github.com/conflux-fans/rosetta-conflux" /></a>
+  <a href="https://github.com/conflux-fans/rosetta-conflux/blob/master/LICENSE.txt"><img src="https://img.shields.io/github/license/conflux-fans/rosetta-conflux.svg" /></a>
+  <img alt="GitHub go.mod Go version" src="https://img.shields.io/github/go-mod/go-version/conflux-fans/rosetta-conflux">
 </p>
 
 <p align="center"><b>
@@ -56,51 +56,26 @@ make build-local
 ### Run
 Running the following commands will start a Docker container in
 [detached mode](https://docs.docker.com/engine/reference/run/#detached--d) with
-a data directory at `<working directory>/ethereum-data` and the Rosetta API accessible
+a data directory at `<working directory>/conflux-data` and the Rosetta API accessible
 at port `8080`.
 
 #### Configuration Environment Variables
 * `MODE` (required) - Determines if Rosetta can make outbound connections. Options: `ONLINE` or `OFFLINE`.
-* `NETWORK` (required) - Ethereum network to launch and/or communicate with. Options: `MAINNET` or `TESTNET` (which defaults to `TESTNET` for backwards compatibility).
+* `NETWORK` (required) - Conflux network to launch and/or communicate with. Options: `MAINNET` or `TESTNET` (which defaults to `TESTNET` for backwards compatibility).
 * `PORT`(required) - Which port to use for Rosetta.
 * `CFXNODE` (optional) - Point to a remote `conflux-rust` node instead of initializing one
-<!-- * `SKIP_GETH_ADMIN` (optional, default: `FALSE`) - Instruct Rosetta to not use the `geth` `admin` RPC calls. This is typically disabled by hosted blockchain node services. -->
-<!-- 
-#### Mainnet:Online
-```text
-docker run -d --rm --ulimit "nofile=100000:100000" -v "$(pwd)/ethereum-data:/data" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -p 8080:8080 -p 30303:30303 rosetta-conflux:latest
-```
-_If you cloned the repository, you can run `make run-mainnet-online`._ -->
 
 #### Mainnet:Online (Remote)
 ```text
 docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -e "GETH=<NODE URL>" -p 8080:8080 -p 30303:30303 rosetta-conflux:latest
 ```
 _If you cloned the repository, you can run `make run-mainnet-remote cfxnode=<NODE URL>`._
-<!-- 
-#### Mainnet:Offline
-```text
-docker run -d --rm -e "MODE=OFFLINE" -e "NETWORK=MAINNET" -e "PORT=8081" -p 8081:8081 rosetta-conflux:latest
-```
-_If you cloned the repository, you can run `make run-mainnet-offline`._
-
-#### Testnet:Online
-```text
-docker run -d --rm --ulimit "nofile=100000:100000" -v "$(pwd)/ethereum-data:/data" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -p 8080:8080 -p 30303:30303 rosetta-conflux:latest
-```
-_If you cloned the repository, you can run `make run-testnet-online`._ -->
 
 #### Testnet:Online (Remote)
 ```text
 docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -e "GETH=<NODE URL>" -p 8080:8080 -p 30303:30303 rosetta-conflux:latest
 ```
 _If you cloned the repository, you can run `make run-testnet-remote cfxnode=<NODE URL>`._
-<!-- 
-#### Testnet:Offline
-```text
-docker run -d --rm -e "MODE=OFFLINE" -e "NETWORK=TESTNET" -e "PORT=8081" -p 8081:8081 rosetta-conflux:latest
-```
-_If you cloned the repository, you can run `make run-testnet-offline`._ -->
 
 ## System Requirements
 `rosetta-conflux` has been tested on an [AWS c5.2xlarge instance](https://aws.amazon.com/ec2/instance-types/c5).
@@ -124,6 +99,36 @@ enabling it._
 
 You should also modify your open file settings to `100000`. This can be done on a linux-based OS
 with the command: `ulimit -n 100000`.
+
+### Conflux-Rust Settings
+
+Conflux-Rust is conflux node program, we need run a conflux-rust node be rosetta-conflux backend RPC server. 
+
+Please find [Run Conflux Node](https://developer.confluxnetwork.org/conflux-doc/docs/get_started) to setup conflux full node
+
+You should set conflux full node config file as bellow for rosetta-conflux could access all RPC and more data it needs. The meanings of these could be find from [here](https://github.com/Conflux-Chain/conflux-rust/blob/master/run/hydra.toml)
+
+```
+node_type = "archive"
+persist_block_number_index = true
+persist_tx_index = true
+additional_maintained_snapshot_count = 90
+executive_trace = true
+public_rpc_apis = "all"
+
+dev_pos_private_key_encryption_password = ""
+
+jsonrpc_ws_eth_port=8546
+jsonrpc_ws_max_payload_bytes=209715200
+jsonrpc_http_keep_alive=true
+
+pow_problem_window_size=10
+```
+
+The mininal query available time of conflux node is 22 hours, imporve available time by config `additional_maintained_snapshot_count`, per 1 will increase 2000 seconds, so if you need query data avaialble time for 3 days, please set it to 90. But the larger value need more storage for stroe snapshot, about 11G per snapshot, so please set it according to your usage scenario.
+
+The `dev_pos_private_key_encryption_password` is used for PoS mining and nothing to do with be a RPC server , so set it be empty
+
 
 ## Testing with rosetta-cli
 To validate `rosetta-conflux`, [install `rosetta-cli`](https://github.com/coinbase/rosetta-cli#install)

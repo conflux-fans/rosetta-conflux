@@ -33,7 +33,7 @@ information [here](https://rosetta-api.org).
 ## Usage
 As specified in the [Rosetta API Principles](https://www.rosetta-api.org/docs/automated_deployment.html),
 all Rosetta implementations must be deployable via Docker and support running via either an
-[`online` or `offline` mode](https://www.rosetta-api.org/docs/node_deployment.html#multiple-modes).
+[`online` mode](https://www.rosetta-api.org/docs/node_deployment.html#multiple-modes).
 
 **YOU MUST INSTALL DOCKER FOR THE FOLLOWING INSTRUCTIONS TO WORK. YOU CAN DOWNLOAD
 DOCKER [HERE](https://www.docker.com/get-started).**
@@ -132,10 +132,11 @@ The `dev_pos_private_key_encryption_password` is used for PoS mining and nothing
 
 ## Testing with rosetta-cli
 To validate `rosetta-conflux`, [install `rosetta-cli`](https://github.com/coinbase/rosetta-cli#install)
-and run one of the following commands:
-* `rosetta-cli check:data --configuration-file rosetta-cli-conf/testnet/config.json`
-* `rosetta-cli check:construction --configuration-file rosetta-cli-conf/testnet/config.json`
-* `rosetta-cli check:data --configuration-file rosetta-cli-conf/mainnet/config.json`
+
+Firstly [run a corresponding conflux node](#conflux-rust-settings) and set the online_url in config to the conflux node url. Then run one of the following commands:
+* `rosetta-cli check:data --configuration-file rosetta-cli-conf/testnet/config.json` - This command validates that the Data API implementation is correct using the conflux testnet node. It also ensures that the implementation does not miss any balance-changing operations.
+* `rosetta-cli check:construction --configuration-file rosetta-cli-conf/testnet/config.json` - This command validates the Construction API implementation. It also verifies transaction construction, signing, and submissions to the testnet network.
+* `rosetta-cli check:data --configuration-file rosetta-cli-conf/mainnet/config.json` - This command validates that the Data API implementation is correct using the conflux mainnet node. It also ensures that the implementation does not miss any balance-changing operations.
 
 ## Future Work
 * Add ERC-20 Rosetta Module to enable reading ERC-20 token transfers and transaction construction
@@ -156,4 +157,4 @@ _Please reach out on our [community](https://community.rosetta-api.org) if you w
 ## License
 This project is available open source under the terms of the [Apache 2.0 License](https://opensource.org/licenses/Apache-2.0).
 
-© 2021 Coinbase
+© 2022 Conflux

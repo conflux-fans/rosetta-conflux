@@ -1,0 +1,22 @@
+[
+    {
+        "account_identifier": {
+            "address": "cfx:acb59fk6vryh8dj5vyvehj9apzhpd72rdpwsc651kz"
+        },
+        "currency": {
+            "symbol": "CFX",
+            "decimals": 18
+        },
+        "value": "4200000000000000000000000000"
+    },
+    {
+        "account_identifier": {
+            "address": "cfx:ach9eg1rk28060m3kpw44np1znvn6p9ffjkk6651nb"
+        },
+        "currency": {
+            "symbol": "CFX",
+            "decimals": 18
+        },
+        "value": "800000000000000000000000000"
+    }
+]

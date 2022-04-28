@@ -1,0 +1,42 @@
+[
+    {
+        "account_identifier": {
+            "address": "cfxtest:aar8jzybzv0fhzreav49syxnzut8s0jt1a1pdeeuwb"
+        },
+        "currency": {
+            "symbol": "CFX",
+            "decimals": 18
+        },
+        "value": "5000000000000000000000000000000000"
+    },
+    {
+        "account_identifier": {
+            "address": "cfxtest:aathrdjwhfsjzt88577vz42r4hkh41vmt68xu9h4vc"
+        },
+        "currency": {
+            "symbol": "CFX",
+            "decimals": 18
+        },
+        "value": "5000000000000000000000000000000000"
+    },
+    {
+        "account_identifier": {
+            "address": "cfxtest:acb59fk6vryh8dj5vyvehj9apzhpd72rdp2fvp77r9"
+        },
+        "currency": {
+            "symbol": "CFX",
+            "decimals": 18
+        },
+        "value": "4200000000000000000000000000"
+    },
+    {
+        "account_identifier": {
+            "address": "cfxtest:ach9eg1rk28060m3kpw44np1znvn6p9ffjdctp77tn"
+        },
+        "currency": {
+            "symbol": "CFX",
+            "decimals": 18
+        },
+        "value": "800000000000000000000000000"
+    }
+]
